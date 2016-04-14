@@ -36,7 +36,7 @@
             try
             {
                 access_key = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
-                access_key = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+                secret_key = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
             }
             catch(SecurityException ex)
             {
