@@ -47,10 +47,13 @@
         {
             files = new List<string>();
 
-            m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
-            using (IDataReader reader = m_Command.ExecuteReader())
+            lock (this)
             {
-                while(reader.Read()) files.Add(reader.GetString(0));
+                m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
+                using (IDataReader reader = m_Command.ExecuteReader())
+                {
+                    while (reader.Read()) files.Add(reader.GetString(0));
+                }
             }
         }
 
