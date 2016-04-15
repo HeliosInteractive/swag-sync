@@ -1,9 +1,12 @@
 ﻿namespace swag
 {
     using System;
+    using System.IO;
     using System.Security;
     using System.Diagnostics;
-
+    using System.Threading.Tasks;
+    using System.Collections.Generic;
+    
     class Program
     {
         static int Main(string[] args)
@@ -26,7 +29,6 @@
                 console_listener.TraceOutputOptions |= TraceOptions.ProcessId;
                 console_listener.TraceOutputOptions |= TraceOptions.ThreadId;
                 console_listener.TraceOutputOptions |= TraceOptions.DateTime;
-                console_listener.TraceOutputOptions |= TraceOptions.Callstack;
                 Trace.Listeners.Add(console_listener);
             }
 
@@ -53,7 +55,40 @@
             }
 
             Greet(opts);
+            Run(opts);
             return 0;
+        }
+
+        static void Run(Options opts)
+        {
+            List<Bucket> buckets = new List<Bucket>();
+
+            foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
+                buckets.Add(new Bucket(bucket_path, opts.Timeout));
+
+            if (opts.SweepOnce)
+            {
+                Trace.TraceInformation("About to sweep...");
+                buckets.ForEach(b => { b.Sweep(); });
+                buckets.ForEach(b => { b.FinishPendingTasks(); });
+                return;
+            }
+            else
+            {
+                Trace.TraceInformation("About to watch...");
+                buckets.ForEach(b => { b.SetupWatcher(); });
+                UploadFailedFiles(opts);
+            }
+        }
+
+        static void UploadFailedFiles(Options opts)
+        {
+            Trace.TraceInformation("Checking for failed files...");
+
+            Task
+                .Delay((int)opts.SweepInterval * 1000)
+                .ContinueWith(task => { UploadFailedFiles(opts); })
+                .Wait();
         }
 
         static void Greet(Options options)
