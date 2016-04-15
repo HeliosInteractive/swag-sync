@@ -70,10 +70,12 @@
             {
                 Trace.TraceInformation("About to sweep...");
                 buckets.ForEach(b => { b.Sweep(); });
+                buckets.ForEach(b => { b.FinishPendingTasks(); });
                 return;
             }
             else
             {
+                Trace.TraceInformation("About to watch...");
                 buckets.ForEach(b => { b.SetupWatcher(); });
                 UploadFailedFiles(opts);
             }

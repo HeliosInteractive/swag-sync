@@ -9,6 +9,7 @@
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
     using System.Threading;
+    using System.Collections.Generic;
 
     public class Bucket : IDisposable
     {
@@ -20,6 +21,7 @@
         private bool                m_Validated     = false;
         private int                 m_Timeout       = 5000;
         private FileSystemWatcher   m_Watcher       = null;
+        private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
 
         public Bucket(string base_path, uint timeout)
         {
@@ -100,40 +102,46 @@
 
             Trace.TraceInformation("Attempting to upload {0}", file);
 
-            TransferUtility file_transfer_utility =
+            using (TransferUtility file_transfer_utility =
                 new TransferUtility(
                     new AmazonS3Client(
-                        Amazon.RegionEndpoint.USWest1));
+                        Amazon.RegionEndpoint.USWest1)))
+            {
+                TransferUtilityUploadRequest request =
+                    new TransferUtilityUploadRequest
+                    {
+                        FilePath = file,
+                        BucketName = m_BucketName,
+                        Key = file
+                            .Replace(m_BaseDirectory, string.Empty)
+                            .Trim(Path.DirectorySeparatorChar)
+                            .Replace(Path.DirectorySeparatorChar, '/')
+                    };
 
-            TransferUtilityUploadRequest request =
-                new TransferUtilityUploadRequest
+                request.UploadProgressEvent +=
+                    new EventHandler<UploadProgressArgs>
+                        (UploadProgressCallback);
+
+                CancellationTokenSource token = new CancellationTokenSource();
+                Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
+                Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
+
+                m_PendingTasks.Add(pending_task);
+                Task completed_task = await pending_task;
+                m_PendingTasks.Remove(pending_task);
+
+                if (completed_task == upload_task)
                 {
-                    FilePath = file,
-                    BucketName = m_BucketName,
-                    Key = file
-                        .Replace(m_BaseDirectory, string.Empty)
-                        .Trim(Path.DirectorySeparatorChar)
-                        .Replace(Path.DirectorySeparatorChar, '/')
-                };
-
-            request.UploadProgressEvent +=
-                new EventHandler<UploadProgressArgs>
-                    (UploadProgressCallback);
-
-            CancellationTokenSource token = new CancellationTokenSource();
-            Task task = file_transfer_utility.UploadAsync(request, token.Token);
-            
-            if (await Task.WhenAny(task, Task.Delay(m_Timeout)) == task)
-            {
-                if (Exists(request, file_transfer_utility.S3Client))
-                    Trace.TraceInformation("Upload complete.");
+                    if (Exists(request, file_transfer_utility.S3Client))
+                        Trace.TraceInformation("Upload complete.");
+                    else
+                        Trace.TraceInformation("Upload failed.");
+                }
                 else
-                    Trace.TraceInformation("Upload failed.");
-            }
-            else
-            {
-                token.Cancel();
-                Trace.TraceInformation("Upload timed out.");
+                {
+                    token.Cancel();
+                    Trace.TraceInformation("Upload timed out.");
+                }
             }
         }
 
@@ -141,7 +149,18 @@
         {
             if (!m_Validated)
                 return;
+
+            foreach (string file in Directory.EnumerateFiles(
+                m_BaseDirectory, "*.*", SearchOption.AllDirectories))
+                Upload(file);
         }
+
+        public void FinishPendingTasks()
+        {
+            m_PendingTasks.RemoveAll(item => item == null);
+            Task.WaitAll(m_PendingTasks.ToArray());
+        }
+
         private bool Exists(TransferUtilityUploadRequest request, IAmazonS3 client)
         {
             try
@@ -179,7 +198,10 @@
             if (!m_Disposed)
             {
                 if (disposing)
+                {
+                    FinishPendingTasks();
                     m_Watcher.Dispose();
+                }
 
                 m_Disposed = true;
             }
