@@ -133,14 +133,23 @@
                 if (completed_task == upload_task)
                 {
                     if (Exists(request, file_transfer_utility.S3Client))
-                        Trace.TraceInformation("Upload complete.");
+                    {
+                        Trace.TraceInformation("Upload complete {0}", file);
+                        FileUploadedCallback(file);
+                    }
                     else
-                        Trace.TraceInformation("Upload failed.");
+                    {
+                        Trace.TraceInformation("Upload failed {0}", file);
+                        FileFailedCallback(file);
+                    }
                 }
                 else
                 {
                     token.Cancel();
-                    Trace.TraceInformation("Upload timed out.");
+                    {
+                        Trace.TraceInformation("Upload timed out {0}", file);
+                        FileFailedCallback(file);
+                    }
                 }
             }
         }
