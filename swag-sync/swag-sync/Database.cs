@@ -74,7 +74,9 @@
 
             lock(this)
             {
-                m_Command.CommandText = string.Format("INSERT OR IGNORE INTO failed (path) VALUES ('{0}')", file);
+                m_Command.Parameters.Clear();
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "file", Value = file });
+                m_Command.CommandText = "INSERT OR IGNORE INTO failed (path) VALUES ('@file')";
                 try { m_Command.ExecuteNonQuery(); }
                 catch (InvalidOperationException) { Dispose(); }
             }
@@ -92,9 +94,9 @@
 
             lock (this)
             {
-                string query1 = string.Format("DELETE FROM failed WHERE path='{0}'", file);
-                string query2 = string.Format("INSERT OR IGNORE INTO succeed (path) VALUES ('{0}')", file);
-                m_Command.CommandText = string.Format("{0};{1}", query1, query2);
+                m_Command.Parameters.Clear();
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "file", Value = file });
+                m_Command.CommandText = "DELETE FROM failed WHERE path='@file';INSERT OR IGNORE INTO succeed (path) VALUES ('@file')";
                 try { m_Command.ExecuteNonQuery(); }
                 catch(InvalidOperationException) { Dispose(); }
             }
@@ -114,7 +116,9 @@
 
             lock (this)
             {
-                m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
+                m_Command.Parameters.Clear();
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "count", Value = count });
+                m_Command.CommandText = "SELECT path FROM failed LIMIT @count";
                 try
                 {
                     using (IDataReader reader = m_Command.ExecuteReader())
