@@ -211,6 +211,22 @@
         }
 
         /// <summary>
+        /// Database-aware version of Sweep. Only uploads
+        /// files if they do not exist in either failed
+        /// ot succeed tables.
+        /// </summary>
+        /// <param name="db"></param>
+        public void Sweep(Database db)
+        {
+            if (!m_Validated)
+                return;
+
+            foreach (string file in Directory.EnumerateFiles(
+                m_BaseDirectory, "*.*", SearchOption.AllDirectories))
+                if (!db.Exists(file)) Upload(file);
+        }
+
+        /// <summary>
         /// Synchronously wait for all pending upload
         /// tasks to finish uploading to S3
         /// </summary>

@@ -80,6 +80,7 @@
                 Trace.TraceInformation("About to watch...");
                 buckets.ForEach(b =>
                 {
+                    b.Sweep(db);
                     b.OnFileUploaded += f => db.PushSucceed(f);
                     b.OnFileFailed += f => db.PushFailed(f);
                     b.SetupWatcher();
