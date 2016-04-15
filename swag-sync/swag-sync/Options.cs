@@ -46,7 +46,7 @@
                     (string v) => { opts.m_RootDirectory = v; }
                 },
                 {
-                    "t|timeout",
+                    "t|timeout=",
                     "Timeout in seconds for upload operations." +
                     "this must be an unsigned integer (number).",
                     (uint v) => { opts.m_Timeout = v; }
