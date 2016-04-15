@@ -26,7 +26,6 @@
                 console_listener.TraceOutputOptions |= TraceOptions.ProcessId;
                 console_listener.TraceOutputOptions |= TraceOptions.ThreadId;
                 console_listener.TraceOutputOptions |= TraceOptions.DateTime;
-                console_listener.TraceOutputOptions |= TraceOptions.Callstack;
                 Trace.Listeners.Add(console_listener);
             }
 
