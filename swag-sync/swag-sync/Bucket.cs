@@ -11,6 +11,9 @@
     using System.Threading;
     using System.Collections.Generic;
 
+    /// <summary>
+    /// Encapsulates logic of uploading/sweeping of one single bucket
+    /// </summary>
     public class Bucket : IDisposable
     {
         public Action<string> OnFileUploaded;
@@ -44,14 +47,23 @@
                 m_BucketName, m_BaseDirectory);
         }
 
+        /// <summary>
+        /// Bucket name
+        /// </summary>
         public string BucketName
         {
             get { return m_BucketName; }
         }
 
+        /// <summary>
+        /// Starts the bucket file watcher
+        /// </summary>
         public void SetupWatcher()
         {
             if (!m_Validated)
+                return;
+
+            if (m_Watcher != null)
                 return;
 
             m_Watcher = new FileSystemWatcher();
@@ -68,12 +80,18 @@
 
         protected void FileUploadedCallback(string file)
         {
+            if (m_PendingFiles.Count > 0)
+                m_PendingFiles.Remove(file);
+
             if (OnFileUploaded != null)
                 OnFileUploaded(file);
         }
 
         protected void FileFailedCallback(string file)
         {
+            if (m_PendingFiles.Count > 0)
+                m_PendingFiles.Remove(file);
+
             if (OnFileFailed != null)
                 OnFileFailed(file);
         }
@@ -98,9 +116,15 @@
 
             Trace.TraceInformation("Bucket {0} has received an event from watcher: File {1} with reason {2}",
                 m_BucketName, ev.FullPath, ev.ChangeType.ToString());
+            
             Upload(ev.FullPath);
         }
 
+        /// <summary>
+        /// Uploads a file to S3 bucket asynchronously.
+        /// Use FinishPendingTasks to wait for everything to finish
+        /// </summary>
+        /// <param name="file"></param>
         public async void Upload(string file)
         {
             if (!m_Validated)
@@ -111,62 +135,75 @@
 
             Trace.TraceInformation("Attempting to upload {0}", file);
 
-            using (TransferUtility file_transfer_utility =
-                new TransferUtility(
-                    new AmazonS3Client(
-                        Amazon.RegionEndpoint.USWest1)))
+            try
             {
-                TransferUtilityUploadRequest request =
-                    new TransferUtilityUploadRequest
-                    {
-                        FilePath = file,
-                        BucketName = m_BucketName,
-                        Key = file
-                            .Replace(m_BaseDirectory, string.Empty)
-                            .Trim(Path.DirectorySeparatorChar)
-                            .Replace(Path.DirectorySeparatorChar, '/')
-                    };
-
-                request.UploadProgressEvent +=
-                    new EventHandler<UploadProgressArgs>
-                        (UploadProgressCallback);
-
-                CancellationTokenSource token = new CancellationTokenSource();
-                Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
-                Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
-
-                m_PendingTasks.Add(pending_task);
-                m_PendingFiles.Add(file);
-
-                Task completed_task = await pending_task;
-
-                m_PendingFiles.Remove(file);
-                m_PendingTasks.Remove(pending_task);
-
-                if (completed_task == upload_task)
+                using (TransferUtility file_transfer_utility =
+                    new TransferUtility(
+                        new AmazonS3Client(
+                            Amazon.RegionEndpoint.USWest1)))
                 {
-                    if (Exists(request, file_transfer_utility.S3Client))
+                    TransferUtilityUploadRequest request =
+                        new TransferUtilityUploadRequest
+                        {
+                            FilePath = file,
+                            BucketName = m_BucketName,
+                            Key = file
+                                .Replace(m_BaseDirectory, string.Empty)
+                                .Trim(Path.DirectorySeparatorChar)
+                                .Replace(Path.DirectorySeparatorChar, '/')
+                        };
+
+                    request.UploadProgressEvent +=
+                        new EventHandler<UploadProgressArgs>
+                            (UploadProgressCallback);
+
+                    CancellationTokenSource token = new CancellationTokenSource();
+                    Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
+                    Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
+
+                    m_PendingTasks.Add(pending_task);
+                    m_PendingFiles.Add(file);
+
+                    Task completed_task = await pending_task;
+
+                    m_PendingFiles.Remove(file);
+                    m_PendingTasks.Remove(pending_task);
+
+                    if (completed_task == upload_task)
                     {
-                        Trace.TraceInformation("Upload complete {0}", file);
-                        FileUploadedCallback(file);
+                        if (Exists(request, file_transfer_utility.S3Client))
+                        {
+                            Trace.TraceInformation("Upload complete {0}", file);
+                            FileUploadedCallback(file);
+                        }
+                        else
+                        {
+                            Trace.TraceInformation("Upload failed {0}", file);
+                            FileFailedCallback(file);
+                        }
                     }
                     else
                     {
-                        Trace.TraceInformation("Upload failed {0}", file);
-                        FileFailedCallback(file);
-                    }
-                }
-                else
-                {
-                    token.Cancel();
-                    {
-                        Trace.TraceInformation("Upload timed out {0}", file);
-                        FileFailedCallback(file);
+                        token.Cancel();
+                        {
+                            Trace.TraceInformation("Upload timed out {0}", file);
+                            FileFailedCallback(file);
+                        }
                     }
                 }
             }
+            catch(Exception ex)
+            {
+                Trace.TraceError("Uploading {0} failed due to exception: {1}",
+                    ex.Message, file);
+                FileFailedCallback(file);
+            }
         }
 
+        /// <summary>
+        /// Sweeps the entire bucket directory
+        /// Does not care about file database
+        /// </summary>
         public void Sweep()
         {
             if (!m_Validated)
@@ -177,8 +214,15 @@
                 Upload(file);
         }
 
+        /// <summary>
+        /// Synchronously wait for all pending upload
+        /// tasks to finish uploading to S3
+        /// </summary>
         public void FinishPendingTasks()
         {
+            if (m_PendingTasks.Count == 0)
+                return;
+
             m_PendingTasks.RemoveAll(item => item == null);
             Task.WaitAll(m_PendingTasks.ToArray());
         }
@@ -201,15 +245,20 @@
             {
                 if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return false;
-
-                throw;
             }
+            catch (Exception ex)
+            {
+                Trace.TraceError("Unable to query S3 for file existence ({0}): {1}/{2}",
+                    ex.Message , request.BucketName, request.Key);
+            }
+
+            return false;
         }
 
-        private void UploadProgressCallback(object sender, UploadProgressArgs e)
+        private static void UploadProgressCallback(object sender, UploadProgressArgs e)
         {
-            Trace.TraceInformation("Upload progress from bucket {0} and File {1}: {2}/{3} bytes.",
-                m_BucketName, e.FilePath, e.TransferredBytes, e.TotalBytes);
+            Trace.TraceInformation("Upload progress for {0}: {1}/{2} bytes.",
+                e.FilePath, e.TransferredBytes, e.TotalBytes);
         }
 
         #region IDisposable Support
@@ -222,9 +271,10 @@
                 if (disposing)
                 {
                     FinishPendingTasks();
-                    m_Watcher.Dispose();
+                    if (m_Watcher != null) m_Watcher.Dispose();
                 }
 
+                m_Watcher = null;
                 m_Disposed = true;
             }
         }
