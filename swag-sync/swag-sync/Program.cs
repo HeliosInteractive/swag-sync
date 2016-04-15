@@ -75,8 +75,14 @@
             }
             else
             {
+                Database db = new Database();
                 Trace.TraceInformation("About to watch...");
-                buckets.ForEach(b => { b.SetupWatcher(); });
+                buckets.ForEach(b =>
+                {
+                    b.OnFileUploaded += f => db.PushSucceed(f);
+                    b.OnFileFailed += f => db.PushFailed(f);
+                    b.SetupWatcher();
+                });
                 UploadFailedFiles(opts);
             }
         }
