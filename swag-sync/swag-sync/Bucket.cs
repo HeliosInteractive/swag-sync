@@ -140,7 +140,7 @@
                 using (TransferUtility file_transfer_utility =
                     new TransferUtility(
                         new AmazonS3Client(
-                            Amazon.RegionEndpoint.USWest1)))
+                            Amazon.RegionEndpoint.USEast1)))
                 {
                     TransferUtilityUploadRequest request =
                         new TransferUtilityUploadRequest
@@ -152,10 +152,6 @@
                                 .Trim(Path.DirectorySeparatorChar)
                                 .Replace(Path.DirectorySeparatorChar, '/')
                         };
-
-                    request.UploadProgressEvent +=
-                        new EventHandler<UploadProgressArgs>
-                            (UploadProgressCallback);
 
                     CancellationTokenSource token = new CancellationTokenSource();
                     Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
@@ -215,6 +211,22 @@
         }
 
         /// <summary>
+        /// Database-aware version of Sweep. Only uploads
+        /// files if they do not exist in either failed
+        /// ot succeed tables.
+        /// </summary>
+        /// <param name="db"></param>
+        public void Sweep(Database db)
+        {
+            if (!m_Validated)
+                return;
+
+            foreach (string file in Directory.EnumerateFiles(
+                m_BaseDirectory, "*.*", SearchOption.AllDirectories))
+                if (!db.Exists(file)) Upload(file);
+        }
+
+        /// <summary>
         /// Synchronously wait for all pending upload
         /// tasks to finish uploading to S3
         /// </summary>
@@ -222,6 +234,9 @@
         {
             if (m_PendingTasks.Count == 0)
                 return;
+
+            Trace.TraceInformation("Waiting for {0} pending tasks to finish."
+                , m_PendingTasks.Count);
 
             m_PendingTasks.RemoveAll(item => item == null);
             Task.WaitAll(m_PendingTasks.ToArray());
@@ -240,25 +255,13 @@
 
                 return true;
             }
-
-            catch (AmazonS3Exception ex)
-            {
-                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return false;
-            }
             catch (Exception ex)
             {
                 Trace.TraceError("Unable to query S3 for file existence ({0}): {1}/{2}",
                     ex.Message , request.BucketName, request.Key);
+
+                return false;
             }
-
-            return false;
-        }
-
-        private static void UploadProgressCallback(object sender, UploadProgressArgs e)
-        {
-            Trace.TraceInformation("Upload progress for {0}: {1}/{2} bytes.",
-                e.FilePath, e.TransferredBytes, e.TotalBytes);
         }
 
         #region IDisposable Support

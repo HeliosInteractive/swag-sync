@@ -22,6 +22,12 @@
                 m_Connection = new SqliteConnection("URI=file:swag.db");
                 m_Connection.Open();
             }
+            catch(DllNotFoundException)
+            {
+                Trace.TraceError("Database connection failed: Sqlite3 not found.");
+                m_Connection = null;
+                return;
+            }
             catch(Exception ex)
             {
                 Trace.TraceError("Database connection failed: ", ex.Message);
@@ -75,8 +81,8 @@
             lock(this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "file", Value = file });
-                m_Command.CommandText = "INSERT OR IGNORE INTO failed (path) VALUES ('@file')";
+                m_Command.CommandText = "INSERT OR IGNORE INTO failed (path) VALUES (@file)";
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@file", Value = file });
                 try { m_Command.ExecuteNonQuery(); }
                 catch (InvalidOperationException) { Dispose(); }
             }
@@ -95,8 +101,8 @@
             lock (this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "file", Value = file });
-                m_Command.CommandText = "DELETE FROM failed WHERE path='@file';INSERT OR IGNORE INTO succeed (path) VALUES ('@file')";
+                m_Command.CommandText = "DELETE FROM failed WHERE path=@file;INSERT OR IGNORE INTO succeed (path) VALUES (@file)";
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@file", Value = file });
                 try { m_Command.ExecuteNonQuery(); }
                 catch(InvalidOperationException) { Dispose(); }
             }
@@ -117,8 +123,8 @@
             lock (this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "count", Value = count });
                 m_Command.CommandText = "SELECT path FROM failed LIMIT @count";
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@count", Value = count });
                 try
                 {
                     using (IDataReader reader = m_Command.ExecuteReader())
@@ -128,6 +134,35 @@
                 }
                 catch(InvalidOperationException) { Dispose(); }
             }
+        }
+
+        /// <summary>
+        /// Checks to see if a file exists in database
+        /// Either in failed or succeed tables
+        /// </summary>
+        /// <param name="file">file to check</param>
+        /// <returns>true on found</returns>
+        public bool Exists(string file)
+        {
+            if (!IsValid)
+                return false;
+
+            lock (this)
+            {
+                m_Command.Parameters.Clear();
+                m_Command.CommandText = "SELECT id FROM failed WHERE path=@file UNION ALL SELECT id FROM succeed WHERE path=@file";
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@file", Value = file });
+                try
+                {
+                    using (IDataReader reader = m_Command.ExecuteReader())
+                    {
+                        return reader.Read();
+                    }
+                }
+                catch(InvalidOperationException) { Dispose(); }
+            }
+
+            return false;
         }
 
         #region IDisposable Support
