@@ -29,13 +29,17 @@
                 return;
             }
 
-            m_Command = m_Connection.CreateCommand();
+            try
+            {
+                m_Command = m_Connection.CreateCommand();
 
-            m_Command.CommandText = "CREATE TABLE IF NOT EXISTS failed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
-            m_Command.ExecuteNonQuery();
+                m_Command.CommandText = "CREATE TABLE IF NOT EXISTS failed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
+                m_Command.ExecuteNonQuery();
 
-            m_Command.CommandText = "CREATE TABLE IF NOT EXISTS succeed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
-            m_Command.ExecuteNonQuery();
+                m_Command.CommandText = "CREATE TABLE IF NOT EXISTS succeed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
+                m_Command.ExecuteNonQuery();
+            }
+            catch (InvalidOperationException) { Dispose(); }
         }
 
         /// <summary>
@@ -64,7 +68,8 @@
             lock(this)
             {
                 m_Command.CommandText = string.Format("INSERT OR IGNORE INTO failed (path) VALUES ('{0}')", file);
-                m_Command.ExecuteNonQuery();
+                try { m_Command.ExecuteNonQuery(); }
+                catch (InvalidOperationException) { Dispose(); }
             }
         }
 
@@ -83,7 +88,8 @@
                 string query1 = string.Format("DELETE FROM failed WHERE path='{0}'", file);
                 string query2 = string.Format("INSERT OR IGNORE INTO succeed (path) VALUES ('{0}')", file);
                 m_Command.CommandText = string.Format("{0};{1}", query1, query2);
-                m_Command.ExecuteNonQuery();
+                try { m_Command.ExecuteNonQuery(); }
+                catch(InvalidOperationException) { Dispose(); }
             }
         }
 
@@ -102,10 +108,14 @@
             lock (this)
             {
                 m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
-                using (IDataReader reader = m_Command.ExecuteReader())
+                try
                 {
-                    while (reader.Read()) files.Add(reader.GetString(0));
+                    using (IDataReader reader = m_Command.ExecuteReader())
+                    {
+                        while (reader.Read()) files.Add(reader.GetString(0));
+                    }
                 }
+                catch(InvalidOperationException) { Dispose(); }
             }
         }
 
@@ -118,10 +128,13 @@
             {
                 if (disposing)
                 {
+                    Trace.TraceWarning("Disposing the database.");
                     if (m_Connection != null) m_Connection.Dispose();
                     if (m_Command != null) m_Command.Dispose();
                 }
 
+                m_Connection = null;
+                m_Command = null;
                 m_Disposed = true;
             }
         }
