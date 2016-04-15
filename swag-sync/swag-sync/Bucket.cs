@@ -35,6 +35,16 @@
             m_BaseDirectory = base_path;
             m_Timeout = (int)timeout * 1000;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
+            m_Validated = true;
+
+            Trace.TraceInformation("Bucket is up and watching with name {0} and path {1}",
+                m_BucketName, m_BaseDirectory);
+        }
+
+        public void SetupWatcher()
+        {
+            if (!m_Validated)
+                return;
 
             m_Watcher = new FileSystemWatcher();
             m_Watcher.Path = m_BaseDirectory;
@@ -46,11 +56,6 @@
             m_Watcher.Renamed += WatcherCallback;
             m_Watcher.EnableRaisingEvents = true;
             m_Watcher.IncludeSubdirectories = true;
-
-            m_Validated = true;
-
-            Trace.TraceInformation("Bucket is up and watching with name {0} and path {1}",
-                m_BucketName, m_BaseDirectory);
         }
 
         protected void FileUploadedCallback(string file)
@@ -132,7 +137,12 @@
             }
         }
 
-        public bool Exists(TransferUtilityUploadRequest request, IAmazonS3 client)
+        public void Sweep()
+        {
+            if (!m_Validated)
+                return;
+        }
+        private bool Exists(TransferUtilityUploadRequest request, IAmazonS3 client)
         {
             try
             {
