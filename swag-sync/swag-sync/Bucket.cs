@@ -21,7 +21,7 @@
         private int                 m_Timeout       = 5000;
         private FileSystemWatcher   m_Watcher       = null;
 
-        public Bucket(string base_path)
+        public Bucket(string base_path, uint timeout)
         {
             if (string.IsNullOrWhiteSpace(base_path) ||
                 !Path.IsPathRooted(base_path) ||
@@ -33,6 +33,7 @@
             }
 
             m_BaseDirectory = base_path;
+            m_Timeout = (int)timeout * 1000;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
 
             m_Watcher = new FileSystemWatcher();
