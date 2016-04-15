@@ -22,6 +22,7 @@
         private int                 m_Timeout       = 5000;
         private FileSystemWatcher   m_Watcher       = null;
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
+        private List<string>        m_PendingFiles  = new List<string>();
 
         public Bucket(string base_path, uint timeout)
         {
@@ -41,6 +42,11 @@
 
             Trace.TraceInformation("Bucket is up and watching with name {0} and path {1}",
                 m_BucketName, m_BaseDirectory);
+        }
+
+        public string BucketName
+        {
+            get { return m_BucketName; }
         }
 
         public void SetupWatcher()
@@ -100,6 +106,9 @@
             if (!m_Validated)
                 return;
 
+            if (m_PendingFiles.Contains(file))
+                return;
+
             Trace.TraceInformation("Attempting to upload {0}", file);
 
             using (TransferUtility file_transfer_utility =
@@ -127,20 +136,33 @@
                 Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
 
                 m_PendingTasks.Add(pending_task);
+                m_PendingFiles.Add(file);
+
                 Task completed_task = await pending_task;
+
+                m_PendingFiles.Remove(file);
                 m_PendingTasks.Remove(pending_task);
 
                 if (completed_task == upload_task)
                 {
                     if (Exists(request, file_transfer_utility.S3Client))
-                        Trace.TraceInformation("Upload complete.");
+                    {
+                        Trace.TraceInformation("Upload complete {0}", file);
+                        FileUploadedCallback(file);
+                    }
                     else
-                        Trace.TraceInformation("Upload failed.");
+                    {
+                        Trace.TraceInformation("Upload failed {0}", file);
+                        FileFailedCallback(file);
+                    }
                 }
                 else
                 {
                     token.Cancel();
-                    Trace.TraceInformation("Upload timed out.");
+                    {
+                        Trace.TraceInformation("Upload timed out {0}", file);
+                        FileFailedCallback(file);
+                    }
                 }
             }
         }
