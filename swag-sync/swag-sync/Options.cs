@@ -46,7 +46,19 @@
                     (string v) => { opts.m_RootDirectory = v; }
                 },
                 {
-                    "h|help",  "show this message and exit",
+                    "t|timeout",
+                    "Timeout in seconds for upload operations." +
+                    "this must be an unsigned integer (number).",
+                    (uint v) => { opts.m_Timeout = v; }
+                },
+                {
+                    "s|sweep",
+                    "Sweep once and quit (Ignores database).",
+                    v => { opts.m_SweepOnce = (v != null); }
+                },
+                {
+                    "h|help",
+                    "show this message and exit",
                     v => { opts.m_ShowHelp = (v != null); }
                 },
             };
@@ -144,9 +156,33 @@
             }
         }
 
+        /// <summary>
+        /// Should we sweep everything and exit?
+        /// </summary>
+        public bool SweepOnce
+        {
+            get
+            {
+                return m_SweepOnce;
+            }
+        }
+
+        /// <summary>
+        /// Timeout in seconds before we give up on uploading
+        /// </summary>
+        public uint Timeout
+        {
+            get
+            {
+                return m_Timeout;
+            }
+        }
+
         private string  m_RootDirectory = "";
         private uint    m_SweepInterval = 10;
         private uint    m_SweepCount    = 10;
+        private uint    m_Timeout       = 10;
         private bool    m_ShowHelp      = false;
+        private bool    m_SweepOnce     = false;
     }
 }
