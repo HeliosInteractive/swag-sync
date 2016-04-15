@@ -50,7 +50,7 @@
             m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
             using (IDataReader reader = m_Command.ExecuteReader())
             {
-                files.Add(reader.GetString(0));
+                while(reader.Read()) files.Add(reader.GetString(0));
             }
         }
 
