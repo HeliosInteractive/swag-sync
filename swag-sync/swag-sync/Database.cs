@@ -39,7 +39,14 @@
                 m_Command.CommandText = "CREATE TABLE IF NOT EXISTS succeed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
                 m_Command.ExecuteNonQuery();
             }
-            catch (InvalidOperationException) { Dispose(); }
+            catch (InvalidOperationException ex)
+            {
+                Trace.TraceError("Connection to database could not be established: ", ex.Message);
+                if (m_Connection != null) m_Connection.Dispose();
+                if (m_Command != null) m_Command.Dispose();
+                m_Connection = null;
+                m_Command = null;
+            }
         }
 
         /// <summary>
