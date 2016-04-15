@@ -22,6 +22,12 @@
                 m_Connection = new SqliteConnection("URI=file:swag.db");
                 m_Connection.Open();
             }
+            catch(DllNotFoundException)
+            {
+                Trace.TraceError("Database connection failed: Sqlite3 not found.");
+                m_Connection = null;
+                return;
+            }
             catch(Exception ex)
             {
                 Trace.TraceError("Database connection failed: ", ex.Message);
