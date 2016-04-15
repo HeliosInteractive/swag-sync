@@ -3,8 +3,13 @@
     using System;
     using System.Data;
     using Mono.Data.Sqlite;
+    using System.Diagnostics;
     using System.Collections.Generic;
 
+    /// <summary>
+    /// Used to store records of what has been uploaded
+    /// and what has been failed per swag-sync runs.
+    /// </summary>
     public class Database : IDisposable
     {
         private IDbConnection   m_Connection;
@@ -12,8 +17,18 @@
 
         public Database()
         {
-            m_Connection = new SqliteConnection("URI=file:swag.db");
-            m_Connection.Open();
+            try
+            {
+                m_Connection = new SqliteConnection("URI=file:swag.db");
+                m_Connection.Open();
+            }
+            catch(Exception ex)
+            {
+                Trace.TraceError("Database connection failed: ", ex.Message);
+                m_Connection = null;
+                return;
+            }
+
             m_Command = m_Connection.CreateCommand();
 
             m_Command.CommandText = "CREATE TABLE IF NOT EXISTS failed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
@@ -23,8 +38,29 @@
             m_Command.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// answers true if underlying resources
+        /// managing the Sqlite database are valid.
+        /// </summary>
+        public bool IsValid
+        {
+            get
+            {
+                return m_Command != null &&
+                    m_Connection != null;
+            }
+        }
+
+        /// <summary>
+        /// Pushes a failed upload file into database
+        /// This is a no-op if file already exists.
+        /// </summary>
+        /// <param name="file">failed file</param>
         public void PushFailed(string file)
         {
+            if (!IsValid)
+                return;
+
             lock(this)
             {
                 m_Command.CommandText = string.Format("INSERT OR IGNORE INTO failed (path) VALUES ('{0}')", file);
@@ -32,8 +68,16 @@
             }
         }
 
+        /// <summary>
+        /// Pushes a successfully uploaded file into database
+        /// Also removes the file from "failed" table if it exists
+        /// </summary>
+        /// <param name="file">succeeded file</param>
         public void PushSucceed(string file)
         {
+            if (!IsValid)
+                return;
+
             lock (this)
             {
                 string query1 = string.Format("DELETE FROM failed WHERE path='{0}'", file);
@@ -43,9 +87,17 @@
             }
         }
 
+        /// <summary>
+        /// Returns (pops) last failed files.
+        /// </summary>
+        /// <param name="files">container to accepts path to failed files</param>
+        /// <param name="count">max nmber of files to pop.</param>
         public void PopFailed(out List<string> files, uint count)
         {
             files = new List<string>();
+
+            if (!IsValid)
+                return;
 
             lock (this)
             {
@@ -58,19 +110,19 @@
         }
 
         #region IDisposable Support
-        private bool m_DisposedValue = false;
+        private bool m_Disposed = false;
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!m_DisposedValue)
+            if (!m_Disposed)
             {
                 if (disposing)
                 {
-                    m_Connection.Dispose();
-                    m_Command.Dispose();
+                    if (m_Connection != null) m_Connection.Dispose();
+                    if (m_Command != null) m_Command.Dispose();
                 }
 
-                m_DisposedValue = true;
+                m_Disposed = true;
             }
         }
 
