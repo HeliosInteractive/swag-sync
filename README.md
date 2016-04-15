@@ -1,6 +1,6 @@
 # swag-sync
 
-S3 file sync utility
+S3 file sync utility (USEast1 only)
 
 ## building
 
