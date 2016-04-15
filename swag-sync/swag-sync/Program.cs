@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Linq;
     using System.Security;
     using System.Diagnostics;
     using System.Threading.Tasks;
@@ -83,17 +84,32 @@
                     b.OnFileFailed += f => db.PushFailed(f);
                     b.SetupWatcher();
                 });
-                UploadFailedFiles(opts);
+                UploadFailedFiles(opts, db, buckets);
             }
         }
 
-        static void UploadFailedFiles(Options opts)
+        static void UploadFailedFiles(Options opts, Database db, List<Bucket> buckets)
         {
             Trace.TraceInformation("Checking for failed files...");
 
+            List<string> failed_files;
+            db.PopFailed(out failed_files, opts.SweepCount);
+
+            failed_files.ForEach(file =>
+            {
+                string bucket_name = file
+                    .Replace(opts.RootDirectory, string.Empty)
+                    .Trim(Path.DirectorySeparatorChar)
+                    .Split(Path.DirectorySeparatorChar)
+                    .First();
+
+                Bucket bucket = buckets.Find(b => b.BucketName == bucket_name);
+                if (bucket != null) bucket.Upload(file);
+            });
+
             Task
                 .Delay((int)opts.SweepInterval * 1000)
-                .ContinueWith(task => { UploadFailedFiles(opts); })
+                .ContinueWith(task => { UploadFailedFiles(opts, db, buckets); })
                 .Wait();
         }
 

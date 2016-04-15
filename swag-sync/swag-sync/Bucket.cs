@@ -43,6 +43,11 @@
                 m_BucketName, m_BaseDirectory);
         }
 
+        public string BucketName
+        {
+            get { return m_BucketName; }
+        }
+
         public void SetupWatcher()
         {
             if (!m_Validated)

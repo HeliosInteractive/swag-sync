@@ -3,6 +3,7 @@
     using System;
     using System.Data;
     using Mono.Data.Sqlite;
+    using System.Collections.Generic;
 
     public class Database : IDisposable
     {
@@ -39,6 +40,17 @@
                 string query2 = string.Format("INSERT OR IGNORE INTO succeed (path) VALUES ('{0}')", file);
                 m_Command.CommandText = string.Format("{0};{1}", query1, query2);
                 m_Command.ExecuteNonQuery();
+            }
+        }
+
+        public void PopFailed(out List<string> files, uint count)
+        {
+            files = new List<string>();
+
+            m_Command.CommandText = string.Format("SELECT path FROM failed LIMIT {0}", count);
+            using (IDataReader reader = m_Command.ExecuteReader())
+            {
+                files.Add(reader.GetString(0));
             }
         }
 
