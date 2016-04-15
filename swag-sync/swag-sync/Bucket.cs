@@ -22,6 +22,7 @@
         private int                 m_Timeout       = 5000;
         private FileSystemWatcher   m_Watcher       = null;
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
+        private List<string>        m_PendingFiles  = new List<string>();
 
         public Bucket(string base_path, uint timeout)
         {
@@ -105,6 +106,9 @@
             if (!m_Validated)
                 return;
 
+            if (m_PendingFiles.Contains(file))
+                return;
+
             Trace.TraceInformation("Attempting to upload {0}", file);
 
             using (TransferUtility file_transfer_utility =
@@ -132,7 +136,11 @@
                 Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
 
                 m_PendingTasks.Add(pending_task);
+                m_PendingFiles.Add(file);
+
                 Task completed_task = await pending_task;
+
+                m_PendingFiles.Remove(file);
                 m_PendingTasks.Remove(pending_task);
 
                 if (completed_task == upload_task)
