@@ -92,6 +92,7 @@
         static void UploadFailedFiles(Options opts, Database db, List<Bucket> buckets)
         {
             Trace.TraceInformation("Checking for failed files...");
+            buckets.ForEach(b => { b.Sweep(db); });
 
             List<string> failed_files;
             db.PopFailed(out failed_files, opts.SweepCount);
