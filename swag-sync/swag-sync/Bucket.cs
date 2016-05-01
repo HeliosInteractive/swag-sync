@@ -28,7 +28,7 @@
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
         private List<string>        m_PendingFiles  = new List<string>();
 
-        public Bucket(string base_path, uint timeout)
+        public Bucket(string base_path, uint timeout, uint maxcount)
         {
             if (string.IsNullOrWhiteSpace(base_path) ||
                 !Path.IsPathRooted(base_path) ||
@@ -41,6 +41,7 @@
 
             m_BaseDirectory = base_path;
             m_Timeout = (int)timeout * 1000;
+            m_MaxCount = (int)maxcount;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
             m_Validated = true;
 
