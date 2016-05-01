@@ -59,7 +59,7 @@
             List<Bucket> buckets = new List<Bucket>();
 
             foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
-                buckets.Add(new Bucket(bucket_path, opts.Timeout));
+                buckets.Add(new Bucket(bucket_path, opts.Timeout, opts.BucketMax));
 
             if (opts.SweepOnce)
             {
@@ -70,7 +70,7 @@
             }
             else
             {
-                Database db = new Database();
+                Database db = new Database(opts.FailLimit);
                 Trace.TraceInformation("About to watch...");
                 buckets.ForEach(b =>
                 {
@@ -121,11 +121,14 @@
                 "╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝ ╚═════╝       ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝\n";
             Console.WriteLine(greetings);
             Console.WriteLine(string.Format("Watching root directory: {0}", options.RootDirectory));
+            Console.WriteLine(string.Format("Maximum bucket uploads:  {0}", options.BucketMax));
+            Console.WriteLine(string.Format("Bucket upload timeout:   {0} (s)", options.Timeout));
+            Console.WriteLine(string.Format("Maximum failed limit:    {0}", options.FailLimit));
 
             if (options.SweepEnabled)
             {
-                Console.WriteLine(string.Format("Sweep interval: {0}", options.SweepInterval));
-                Console.WriteLine(string.Format("Sweep count: {0}", options.SweepCount));
+                Console.WriteLine(string.Format("Sweep interval:          {0} (s)", options.SweepInterval));
+                Console.WriteLine(string.Format("Sweep count:             {0}", options.SweepCount));
             }
             else
                 Console.WriteLine("Sweeping is disabled by command line");
