@@ -40,6 +40,18 @@
                     (uint v) => { opts.m_SweepCount = v; }
                 },
                 {
+                    "b|bucket_max=",
+                    "Max number of parallel uploads PER BUCKET." +
+                    "this must be an unsigned integer (number).",
+                    (uint v) => { opts.m_BucketMax = v; }
+                },
+                {
+                    "f|fail_limit=",
+                    "Number of attempts before giving up on a failed upload." +
+                    "this must be an unsigned integer (number).",
+                    (uint v) => { opts.m_FailLimit = v; }
+                },
+                {
                     "r|root=",
                     "The root directory to watch." +
                     "Sub directories will be used as bucket names.",
@@ -178,9 +190,33 @@
             }
         }
 
+        /// <summary>
+        /// Maximum number of parallel uploads per bucket
+        /// </summary>
+        public uint BucketMax
+        {
+            get
+            {
+                return m_BucketMax;
+            }
+        }
+
+        /// <summary>
+        /// Number of attempts before giving up on a failed file
+        /// </summary>
+        public uint FailLimit
+        {
+            get
+            {
+                return m_FailLimit;
+            }
+        }
+
         private string  m_RootDirectory = "";
         private uint    m_SweepInterval = 10;
         private uint    m_SweepCount    = 10;
+        private uint    m_BucketMax     = 10;
+        private uint    m_FailLimit     = 10;
         private uint    m_Timeout       = 10;
         private bool    m_ShowHelp      = false;
         private bool    m_SweepOnce     = false;
