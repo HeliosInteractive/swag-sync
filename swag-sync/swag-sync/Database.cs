@@ -14,9 +14,12 @@
     {
         private IDbConnection   m_Connection;
         private IDbCommand      m_Command;
+        private uint            m_FailedLimit = 5;
 
-        public Database()
+        public Database(uint fail_limit)
         {
+            m_FailedLimit = fail_limit;
+
             try
             {
                 m_Connection = new SqliteConnection("URI=file:swag.db");
@@ -39,7 +42,7 @@
             {
                 m_Command = m_Connection.CreateCommand();
 
-                m_Command.CommandText = "CREATE TABLE IF NOT EXISTS failed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
+                m_Command.CommandText = "CREATE TABLE IF NOT EXISTS failed (id INTEGER PRIMARY KEY, attempts INTEGER DEFAULT 0, path VARCHAR(4096) UNIQUE)";
                 m_Command.ExecuteNonQuery();
 
                 m_Command.CommandText = "CREATE TABLE IF NOT EXISTS succeed (id INTEGER PRIMARY KEY, path VARCHAR(4096) UNIQUE)";
@@ -81,7 +84,7 @@
             lock(this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.CommandText = "INSERT OR IGNORE INTO failed (path) VALUES (@file)";
+                m_Command.CommandText = "INSERT OR IGNORE INTO failed (path) VALUES (@file); UPDATE failed SET attempts=attempts+1 WHERE path=@file";
                 m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@file", Value = file });
                 try { m_Command.ExecuteNonQuery(); }
                 catch (InvalidOperationException) { Dispose(); }
@@ -123,8 +126,9 @@
             lock (this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.CommandText = "SELECT path FROM failed LIMIT @count";
+                m_Command.CommandText = "SELECT path FROM failed WHERE attempts < @limit LIMIT @count";
                 m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@count", Value = count });
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@limit", Value = m_FailedLimit });
                 try
                 {
                     using (IDataReader reader = m_Command.ExecuteReader())

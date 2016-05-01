@@ -25,13 +25,7 @@
                 return 1;
             }
 
-            using (var console_listener = new ConsoleTraceListener())
-            {
-                console_listener.TraceOutputOptions |= TraceOptions.ProcessId;
-                console_listener.TraceOutputOptions |= TraceOptions.ThreadId;
-                console_listener.TraceOutputOptions |= TraceOptions.DateTime;
-                Trace.Listeners.Add(console_listener);
-            }
+            Trace.Listeners.Add(new ConsoleTraceListener());
 
             string access_key = string.Empty;
             string secret_key = string.Empty;
@@ -65,7 +59,7 @@
             List<Bucket> buckets = new List<Bucket>();
 
             foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
-                buckets.Add(new Bucket(bucket_path, opts.Timeout));
+                buckets.Add(new Bucket(bucket_path, opts.Timeout, opts.BucketMax));
 
             if (opts.SweepOnce)
             {
@@ -76,7 +70,7 @@
             }
             else
             {
-                Database db = new Database();
+                Database db = new Database(opts.FailLimit);
                 Trace.TraceInformation("About to watch...");
                 buckets.ForEach(b =>
                 {
@@ -92,6 +86,7 @@
         static void UploadFailedFiles(Options opts, Database db, List<Bucket> buckets)
         {
             Trace.TraceInformation("Checking for failed files...");
+            buckets.ForEach(b => { b.Sweep(db); });
 
             List<string> failed_files;
             db.PopFailed(out failed_files, opts.SweepCount);
@@ -126,11 +121,14 @@
                 "╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝ ╚═════╝       ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝\n";
             Console.WriteLine(greetings);
             Console.WriteLine(string.Format("Watching root directory: {0}", options.RootDirectory));
+            Console.WriteLine(string.Format("Maximum bucket uploads:  {0}", options.BucketMax));
+            Console.WriteLine(string.Format("Bucket upload timeout:   {0} (s)", options.Timeout));
+            Console.WriteLine(string.Format("Maximum failed limit:    {0}", options.FailLimit));
 
             if (options.SweepEnabled)
             {
-                Console.WriteLine(string.Format("Sweep interval: {0}", options.SweepInterval));
-                Console.WriteLine(string.Format("Sweep count: {0}", options.SweepCount));
+                Console.WriteLine(string.Format("Sweep interval:          {0} (s)", options.SweepInterval));
+                Console.WriteLine(string.Format("Sweep count:             {0}", options.SweepCount));
             }
             else
                 Console.WriteLine("Sweeping is disabled by command line");

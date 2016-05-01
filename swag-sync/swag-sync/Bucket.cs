@@ -23,11 +23,12 @@
         private string              m_BucketName    = "";
         private bool                m_Validated     = false;
         private int                 m_Timeout       = 5000;
+        private int                 m_MaxCount      = 5;
         private FileSystemWatcher   m_Watcher       = null;
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
         private List<string>        m_PendingFiles  = new List<string>();
 
-        public Bucket(string base_path, uint timeout)
+        public Bucket(string base_path, uint timeout, uint maxcount)
         {
             if (string.IsNullOrWhiteSpace(base_path) ||
                 !Path.IsPathRooted(base_path) ||
@@ -40,6 +41,7 @@
 
             m_BaseDirectory = base_path;
             m_Timeout = (int)timeout * 1000;
+            m_MaxCount = (int)maxcount;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
             m_Validated = true;
 
@@ -98,6 +100,12 @@
 
         private void WatcherCallback(object source, FileSystemEventArgs ev)
         {
+            if (!File.Exists(ev.FullPath))
+            {
+                Trace.TraceError("File does not exist: {0}", ev.FullPath);
+                return;
+            }
+
             if (File.GetAttributes(ev.FullPath).HasFlag(FileAttributes.Directory))
             {
                 Trace.TraceInformation("Bucket {0} has received an event from watcher: File {1} with reason {2}. {3}",
@@ -131,12 +139,22 @@
                 return;
 
             if (m_PendingFiles.Contains(file))
+            {
+                Trace.TraceInformation("File is pending. Ignoring {0}", file);
                 return;
+            }
 
-            Trace.TraceInformation("Attempting to upload {0}", file);
+            if (m_PendingFiles.Count > m_MaxCount)
+            {
+                Trace.TraceInformation("Max count exceeded. Ignoring {0}", file);
+                return;
+            }
 
             try
             {
+                m_PendingFiles.Add(file);
+                Trace.TraceInformation("Upload began for {0}", file);
+
                 using (TransferUtility file_transfer_utility =
                     new TransferUtility(
                         new AmazonS3Client(
@@ -147,10 +165,7 @@
                         {
                             FilePath = file,
                             BucketName = m_BucketName,
-                            Key = file
-                                .Replace(m_BaseDirectory, string.Empty)
-                                .Trim(Path.DirectorySeparatorChar)
-                                .Replace(Path.DirectorySeparatorChar, '/')
+                            Key = GetRelativePath(file, m_BaseDirectory)
                         };
 
                     CancellationTokenSource token = new CancellationTokenSource();
@@ -158,41 +173,41 @@
                     Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
 
                     m_PendingTasks.Add(pending_task);
-                    m_PendingFiles.Add(file);
+                    Trace.TraceInformation("Task added for {0}", file);
 
-                    Task completed_task = await pending_task;
-
-                    m_PendingFiles.Remove(file);
-                    m_PendingTasks.Remove(pending_task);
-
-                    if (completed_task == upload_task)
+                    try
                     {
-                        if (Exists(request, file_transfer_utility.S3Client))
+                        Task completed_task = await pending_task;
+
+                        if (completed_task == upload_task
+                            && completed_task.IsCompleted
+                            && !completed_task.IsFaulted)
                         {
-                            Trace.TraceInformation("Upload complete {0}", file);
+                            Trace.TraceInformation("Upload completed {0}", file);
                             FileUploadedCallback(file);
                         }
                         else
                         {
-                            Trace.TraceInformation("Upload failed {0}", file);
-                            FileFailedCallback(file);
+                            token.Cancel();
+                            throw new TimeoutException("Task timed out.");
                         }
                     }
-                    else
+                    finally
                     {
-                        token.Cancel();
-                        {
-                            Trace.TraceInformation("Upload timed out {0}", file);
-                            FileFailedCallback(file);
-                        }
+                        m_PendingTasks.Remove(pending_task);
+                        Trace.TraceInformation("Task ended for {0}", file);
                     }
                 }
             }
             catch(Exception ex)
             {
-                Trace.TraceError("Uploading {0} failed due to exception: {1}",
-                    ex.Message, file);
+                Trace.TraceError("Uploade failed {0}: {1}", ex.Message, file);
                 FileFailedCallback(file);
+            }
+            finally
+            {
+                m_PendingFiles.Remove(file);
+                Trace.TraceInformation("Upload ended for {0}", file);
             }
         }
 
@@ -205,15 +220,14 @@
             if (!m_Validated)
                 return;
 
-            foreach (string file in Directory.EnumerateFiles(
-                m_BaseDirectory, "*.*", SearchOption.AllDirectories))
+            foreach (string file in ListFiles())
                 Upload(file);
         }
 
         /// <summary>
         /// Database-aware version of Sweep. Only uploads
         /// files if they do not exist in either failed
-        /// ot succeed tables.
+        /// or succeed tables.
         /// </summary>
         /// <param name="db"></param>
         public void Sweep(Database db)
@@ -221,8 +235,7 @@
             if (!m_Validated)
                 return;
 
-            foreach (string file in Directory.EnumerateFiles(
-                m_BaseDirectory, "*.*", SearchOption.AllDirectories))
+            foreach (string file in ListFiles())
                 if (!db.Exists(file)) Upload(file);
         }
 
@@ -242,26 +255,28 @@
             Task.WaitAll(m_PendingTasks.ToArray());
         }
 
-        private bool Exists(TransferUtilityUploadRequest request, IAmazonS3 client)
+        private IEnumerable<string> ListFiles()
         {
-            try
-            {
-                var response = client.GetObjectMetadata(
-                    new GetObjectMetadataRequest
-                    {
-                        BucketName = request.BucketName,
-                        Key = request.Key
-                    });
+            return Directory.EnumerateFiles(
+                m_BaseDirectory,
+                "*.*",
+                SearchOption.AllDirectories);
+        }
 
-                return true;
-            }
-            catch (Exception ex)
+        private string GetRelativePath(string filespec, string folder)
+        {
+            Uri pathUri = new Uri(filespec);
+            
+            if (!folder.EndsWith(Path.DirectorySeparatorChar.ToString()))
             {
-                Trace.TraceError("Unable to query S3 for file existence ({0}): {1}/{2}",
-                    ex.Message , request.BucketName, request.Key);
-
-                return false;
+                folder += Path.DirectorySeparatorChar;
             }
+
+            return Uri.UnescapeDataString(
+                new Uri(folder)
+                .MakeRelativeUri(pathUri)
+                .ToString()
+                .Replace('/', Path.DirectorySeparatorChar));
         }
 
         #region IDisposable Support
