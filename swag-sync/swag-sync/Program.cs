@@ -25,13 +25,7 @@
                 return 1;
             }
 
-            using (var console_listener = new ConsoleTraceListener())
-            {
-                console_listener.TraceOutputOptions |= TraceOptions.ProcessId;
-                console_listener.TraceOutputOptions |= TraceOptions.ThreadId;
-                console_listener.TraceOutputOptions |= TraceOptions.DateTime;
-                Trace.Listeners.Add(console_listener);
-            }
+            Trace.Listeners.Add(new ConsoleTraceListener());
 
             string access_key = string.Empty;
             string secret_key = string.Empty;
