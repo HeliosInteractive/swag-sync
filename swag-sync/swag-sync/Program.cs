@@ -86,6 +86,8 @@
                         b.OnFileFailed += f => db.PushFailed(f);
                         b.SetupWatcher();
                     });
+
+                    CleanDatabase(opts, db);
                     UploadFailedFiles(opts, db, buckets);
                 }
             }
@@ -94,6 +96,29 @@
                 bucket.Dispose();
 
             return 0;
+        }
+
+        static void CleanDatabase(Options opts, Database db)
+        {
+            List<string> all_files;
+            db.PopAll(out all_files);
+
+            all_files.ForEach(file =>
+            {
+                if (!File.Exists(file) ||
+                    !file.Contains(opts.RootDirectory))
+                {
+                    Trace.TraceWarning("Invalid file found in database: {0}", file);
+                    db.Remove(file);
+                }
+            });
+
+            if (opts.CleanEnabled)
+            {
+                Task
+                    .Delay(new TimeSpan(0, 0, (int)opts.CleanInterval))
+                    .ContinueWith(task => { CleanDatabase(opts, db); });
+            }
         }
 
         static void UploadFailedFiles(Options opts, Database db, List<Bucket> buckets)
