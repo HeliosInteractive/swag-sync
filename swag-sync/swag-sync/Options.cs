@@ -33,6 +33,13 @@
                     (uint v) => { opts.m_SweepInterval = v; }
                 },
                 {
+                    "d|database_cleanup_interval=",
+                    "Time in seconds to service the integrity of the entire database." +
+                    "this must be an unsigned integer (number)."+
+                    "specify zero to disable database cleanup.",
+                    (uint v) => { opts.m_CleanInterval = v; }
+                },
+                {
                     "c|count=",
                     "the number files to pop in every sweep PER BUCKET." +
                     "this must be an unsigned integer (number)."+
@@ -136,6 +143,29 @@
         }
 
         /// <summary>
+        /// Number of seconds to wait before cleaning
+        /// the entire database
+        /// </summary>
+        public uint CleanInterval
+        {
+            get
+            {
+                return m_CleanInterval;
+            }
+        }
+
+        /// <summary>
+        /// Answers true if regular database cleaning is enabled
+        /// </summary>
+        public bool CleanEnabled
+        {
+            get
+            {
+                return CleanInterval > 0;
+            }
+        }
+
+        /// <summary>
         /// Number of files to upload in every sweep attempt
         /// </summary>
         public uint SweepCount
@@ -214,6 +244,7 @@
 
         private string  m_RootDirectory = "";
         private uint    m_SweepInterval = 10;
+        private uint    m_CleanInterval = 10;
         private uint    m_SweepCount    = 10;
         private uint    m_BucketMax     = 10;
         private uint    m_FailLimit     = 10;

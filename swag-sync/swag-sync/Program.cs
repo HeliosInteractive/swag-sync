@@ -50,36 +50,74 @@
             }
 
             Greet(opts);
-            Run(opts);
-            return 0;
+            return Run(opts);
         }
 
-        static void Run(Options opts)
+        static int Run(Options opts)
         {
             List<Bucket> buckets = new List<Bucket>();
 
-            foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
-                buckets.Add(new Bucket(bucket_path, opts.Timeout, opts.BucketMax));
+            try
+            {
+                foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
+                    buckets.Add(new Bucket(bucket_path, opts.Timeout, opts.BucketMax));
+            }
+            catch(Exception ex)
+            {
+                Trace.TraceError("Unable to read bucket directories: {0}", ex.Message);
+                return 1;
+            }
 
             if (opts.SweepOnce)
             {
                 Trace.TraceInformation("About to sweep...");
                 buckets.ForEach(b => { b.Sweep(); });
                 buckets.ForEach(b => { b.FinishPendingTasks(); });
-                return;
             }
             else
             {
-                Database db = new Database(opts.FailLimit);
                 Trace.TraceInformation("About to watch...");
-                buckets.ForEach(b =>
+                using (Database db = new Database(opts.FailLimit))
                 {
-                    b.Sweep(db);
-                    b.OnFileUploaded += f => db.PushSucceed(f);
-                    b.OnFileFailed += f => db.PushFailed(f);
-                    b.SetupWatcher();
-                });
-                UploadFailedFiles(opts, db, buckets);
+                    buckets.ForEach(b =>
+                    {
+                        b.Sweep(db);
+                        b.OnFileUploaded += f => db.PushSucceed(f);
+                        b.OnFileFailed += f => db.PushFailed(f);
+                        b.SetupWatcher();
+                    });
+
+                    CleanDatabase(opts, db);
+                    UploadFailedFiles(opts, db, buckets);
+                }
+            }
+
+            foreach (Bucket bucket in buckets)
+                bucket.Dispose();
+
+            return 0;
+        }
+
+        static void CleanDatabase(Options opts, Database db)
+        {
+            List<string> all_files;
+            db.PopAll(out all_files);
+
+            all_files.ForEach(file =>
+            {
+                if (!File.Exists(file) ||
+                    !file.Contains(opts.RootDirectory))
+                {
+                    Trace.TraceWarning("Invalid file found in database: {0}", file);
+                    db.Remove(file);
+                }
+            });
+
+            if (opts.CleanEnabled)
+            {
+                Task
+                    .Delay(new TimeSpan(0, 0, (int)opts.CleanInterval))
+                    .ContinueWith(task => { CleanDatabase(opts, db); });
             }
         }
 
@@ -102,9 +140,9 @@
                 Bucket bucket = buckets.Find(b => b.BucketName == bucket_name);
                 if (bucket != null) bucket.Upload(file);
             });
-
+            
             Task
-                .Delay((int)opts.SweepInterval * 1000)
+                .Delay(new TimeSpan(0, 0, (int)opts.SweepInterval))
                 .ContinueWith(task => { UploadFailedFiles(opts, db, buckets); })
                 .Wait();
         }

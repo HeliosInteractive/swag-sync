@@ -112,6 +112,25 @@
         }
 
         /// <summary>
+        /// Removes a file from both succeed and failed tables.
+        /// </summary>
+        /// <param name="file">desired file</param>
+        public void Remove(string file)
+        {
+            if (!IsValid)
+                return;
+
+            lock (this)
+            {
+                m_Command.Parameters.Clear();
+                m_Command.CommandText = "DELETE FROM failed WHERE path=@file; DELETE FROM succeed WHERE path=@file";
+                m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@file", Value = file });
+                try { m_Command.ExecuteNonQuery(); }
+                catch(InvalidOperationException) { Dispose(); }
+            }
+        }
+
+        /// <summary>
         /// Returns (pops) last failed files.
         /// </summary>
         /// <param name="files">container to accepts path to failed files</param>
@@ -137,6 +156,32 @@
                     }
                 }
                 catch(InvalidOperationException) { Dispose(); }
+            }
+        }
+
+        /// <summary>
+        /// Pops all files from both succeed and failed tables
+        /// </summary>
+        /// <param name="files">container to accepts path to popped files</param>
+        public void PopAll(out List<string> files)
+        {
+            files = new List<string>();
+
+            if (!IsValid)
+                return;
+
+            lock (this)
+            {
+                m_Command.Parameters.Clear();
+                m_Command.CommandText = "SELECT path FROM failed UNION ALL SELECT path FROM succeed";
+                try
+                {
+                    using (IDataReader reader = m_Command.ExecuteReader())
+                    {
+                        while (reader.Read()) files.Add(reader.GetString(0));
+                    }
+                }
+                catch (InvalidOperationException) { Dispose(); }
             }
         }
 
