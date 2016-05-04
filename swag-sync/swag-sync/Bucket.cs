@@ -4,12 +4,12 @@
     using System.IO;
     using Amazon.S3;
     using System.Linq;
+    using Amazon.S3.Model;
     using System.Threading;
     using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
     using System.Collections.Generic;
-
     /// <summary>
     /// Encapsulates logic of uploading/sweeping of one single bucket
     /// </summary>
@@ -21,12 +21,11 @@
         private string              m_BaseDirectory = "";
         private string              m_BucketName    = "";
         private bool                m_Validated     = false;
-        private int                 m_Timeout       = 5;
-        private int                 m_MaxCount      = 5;
         private FileSystemWatcher   m_Watcher       = null;
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
         private List<string>        m_PendingFiles  = new List<string>();
         private InternetService     m_Internet      = null;
+        private Options             m_options       = null;
 
         public Bucket(string base_path, Options opts, InternetService internet)
         {
@@ -40,9 +39,8 @@
             }
 
             m_Internet = internet;
+            m_options = opts;
             m_BaseDirectory = base_path;
-            m_Timeout = (int)opts.Timeout;
-            m_MaxCount = (int)opts.BucketMax;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
             m_Validated = true;
 
@@ -145,7 +143,7 @@
                 return;
             }
 
-            if (m_PendingFiles.Count > m_MaxCount)
+            if (m_PendingFiles.Count > m_options.BucketMax)
             {
                 Trace.TraceInformation("Max count exceeded. Ignoring {0}", file);
                 return;
@@ -175,34 +173,50 @@
                             Key = GetRelativePath(file, m_BaseDirectory)
                         };
 
-                    CancellationTokenSource token = new CancellationTokenSource();
-                    Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
-                    Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(TimeSpan.FromSeconds(m_Timeout)));
-
-                    m_PendingTasks.Add(pending_task);
-                    Trace.TraceInformation("Task added for {0}", file);
-
-                    try
+                    using (CancellationTokenSource token = new CancellationTokenSource())
+                    using (Task timeout_task = Task.Delay(TimeSpan.FromSeconds(m_options.Timeout), token.Token))
+                    using (Task upload_task = file_transfer_utility.UploadAsync(request, token.Token))
                     {
-                        Task completed_task = await pending_task;
+                        Task<Task> pending_task = Task.WhenAny(upload_task, timeout_task);
 
-                        if (completed_task == upload_task
-                            && completed_task.IsCompleted
-                            && !completed_task.IsFaulted)
+                        m_PendingTasks.Add(pending_task);
+                        Trace.TraceInformation("Task added for {0}", file);
+
+                        try
                         {
-                            Trace.TraceInformation("Upload completed {0}", file);
-                            FileUploadedCallback(file);
-                        }
-                        else
-                        {
+                            Task completed_task = await pending_task;
                             token.Cancel();
-                            throw new TimeoutException("Task timed out.");
+
+                            if (completed_task == upload_task
+                                && completed_task.IsCompleted
+                                && !completed_task.IsFaulted)
+                            {
+                                if (Exists(request, file_transfer_utility.S3Client))
+                                {
+                                    Trace.TraceInformation("Upload completed {0}", file);
+                                    FileUploadedCallback(file);
+                                }
+                                else
+                                {
+                                    throw new FileNotFoundException("S3 double check failed");
+                                }
+                            }
+                            else
+                            {
+                                throw new TimeoutException("Task timed out.");
+                            }
                         }
-                    }
-                    finally
-                    {
-                        m_PendingTasks.Remove(pending_task);
-                        Trace.TraceInformation("Task ended for {0}", file);
+                        finally
+                        {
+                            m_PendingTasks.Remove(pending_task);
+                            Trace.TraceInformation("Task ended for {0}", file);
+                        }
+
+                        if (!timeout_task.IsCompleted)
+                            timeout_task.Wait();
+
+                        if (!upload_task.IsCompleted)
+                            upload_task.Wait();
                     }
                 }
             }
@@ -260,6 +274,57 @@
 
             m_PendingTasks.RemoveAll(item => item == null);
             Task.WaitAll(m_PendingTasks.ToArray());
+        }
+
+        /// <summary>
+        /// Double checks with AWS to see if a file uploaded
+        /// previously via Upload() exists or not.
+        /// </summary>
+        /// <param name="request">param coming in from Upload</param>
+        /// <param name="client">param coming in from Upload</param>
+        /// <returns></returns>
+        private bool Exists(TransferUtilityUploadRequest request, IAmazonS3 client)
+        {
+            if (!m_options.CheckEnabled)
+                return true;
+
+            bool exists = false;
+
+            using (CancellationTokenSource cts = new CancellationTokenSource())
+            using (Task timeout = Task.Delay(TimeSpan.FromMilliseconds(m_options.CheckTimeout), cts.Token))
+            using (Task exist_check = Task.Run(() =>
+            {
+                try
+                {
+                    var response = client.GetObjectMetadata(
+                        new GetObjectMetadataRequest
+                        {
+                            BucketName = request.BucketName,
+                            Key = request.Key
+                        });
+
+                    exists = true;
+                }
+                catch (Exception ex)
+                {
+                    Trace.TraceError("Unable to query S3 for file existence ({0}): {1}/{2}",
+                        ex.Message, request.BucketName, request.Key);
+
+                    exists = false;
+                }
+            }, cts.Token))
+            {
+                Task.WaitAny(timeout, exist_check);
+                cts.Cancel();
+
+                if (!exist_check.IsCompleted)
+                    exist_check.Wait();
+
+                if (!timeout.IsCompleted)
+                    timeout.Wait();
+            }
+
+            return exists;
         }
 
         private IEnumerable<string> ListFiles()

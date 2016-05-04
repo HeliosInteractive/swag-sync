@@ -33,6 +33,13 @@
                     (uint v) => { opts.m_SweepInterval = v; }
                 },
                 {
+                    "a|aws_check_timeout=",
+                    "Time in MILLIseconds to double check with AWS if upload succeed." +
+                    "this must be an unsigned integer (number)."+
+                    "specify zero to disable it This option is usually not needed.",
+                    (uint v) => { opts.m_CheckTimeout = v; }
+                },
+                {
                     "p|ping_interval=",
                     "Time in seconds to check for Internet connectivity." +
                     "this must be an unsigned integer (number)."+
@@ -261,7 +268,30 @@
             }
         }
 
+        /// <summary>
+        /// Number of milliseconds to timeout AWS double check request
+        /// </summary>
+        public uint CheckTimeout
+        {
+            get
+            {
+                return m_CheckTimeout;
+            }
+        }
+
+        /// <summary>
+        /// Answers true if we need to double check with AWS after uploads
+        /// </summary>
+        public bool CheckEnabled
+        {
+            get
+            {
+                return CheckTimeout > 0;
+            }
+        }
+
         private string  m_RootDirectory = "";
+        private uint    m_CheckTimeout  = 0;
         private uint    m_SweepInterval = 10;
         private uint    m_CleanInterval = 10;
         private uint    m_PingInterval  = 10;
