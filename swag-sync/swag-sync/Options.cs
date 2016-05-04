@@ -33,6 +33,13 @@
                     (uint v) => { opts.m_SweepInterval = v; }
                 },
                 {
+                    "p|ping_interval=",
+                    "Time in seconds to check for Internet connectivity." +
+                    "this must be an unsigned integer (number)."+
+                    "specify zero to disable Internet checks.",
+                    (uint v) => { opts.m_PingInterval = v; }
+                },
+                {
                     "d|database_cleanup_interval=",
                     "Time in seconds to service the integrity of the entire database." +
                     "this must be an unsigned integer (number)."+
@@ -155,6 +162,18 @@
         }
 
         /// <summary>
+        /// Number of seconds to wait before pinging Google
+        /// again to check and see if Internet is reachable
+        /// </summary>
+        public uint PingInterval
+        {
+            get
+            {
+                return m_PingInterval;
+            }
+        }
+
+        /// <summary>
         /// Answers true if regular database cleaning is enabled
         /// </summary>
         public bool CleanEnabled
@@ -245,6 +264,7 @@
         private string  m_RootDirectory = "";
         private uint    m_SweepInterval = 10;
         private uint    m_CleanInterval = 10;
+        private uint    m_PingInterval  = 10;
         private uint    m_SweepCount    = 10;
         private uint    m_BucketMax     = 10;
         private uint    m_FailLimit     = 10;
