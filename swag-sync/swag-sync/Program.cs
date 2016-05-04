@@ -26,6 +26,14 @@
 
             Trace.Listeners.Add(new ConsoleTraceListener());
 
+            if (!CheckEnvironmentVariables())
+                return 1;
+
+            return Run(opts);
+        }
+
+        static bool CheckEnvironmentVariables()
+        {
             string access_key = string.Empty;
             string secret_key = string.Empty;
 
@@ -34,10 +42,10 @@
                 access_key = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
                 secret_key = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
             }
-            catch(SecurityException ex)
+            catch (SecurityException ex)
             {
                 Trace.TraceError("Unable to access environment variables: {0}", ex.Message);
-                return 1;
+                return false;
             }
 
             if (string.IsNullOrWhiteSpace(access_key) ||
@@ -45,15 +53,16 @@
             {
                 Trace.TraceError("You need to define {0} and {1} environment variables!",
                     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY");
-                return 1;
+                return false;
             }
 
-            Greet(opts);
-            return Run(opts);
+            return true;
         }
 
         static int Run(Options opts)
         {
+            Greet(opts);
+
             List<Bucket> buckets = new List<Bucket>();
 
             using (InternetService internet = new InternetService())
@@ -125,28 +134,25 @@
         
         static void Greet(Options options)
         {
-            const string greetings =
+            string greetings =
                 "\n" +
-                "███████╗██╗    ██╗ █████╗  ██████╗       ███████╗██╗   ██╗███╗   ██╗ ██████╗\n" +
-                "██╔════╝██║    ██║██╔══██╗██╔════╝       ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝\n" +
-                "███████╗██║ █╗ ██║███████║██║  ███╗█████╗███████╗ ╚████╔╝ ██╔██╗ ██║██║     \n" +
-                "╚════██║██║███╗██║██╔══██║██║   ██║╚════╝╚════██║  ╚██╔╝  ██║╚██╗██║██║     \n" +
-                "███████║╚███╔███╔╝██║  ██║╚██████╔╝      ███████║   ██║   ██║ ╚████║╚██████╗\n" +
-                "╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝ ╚═════╝       ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝\n";
+                @" _____      ____ _  __ _   ___ _   _ _ __   ___ " + Environment.NewLine +
+                @"/ __\ \ /\ / / _` |/ _` | / __| | | | '_ \ / __|" + Environment.NewLine +
+                @"\__ \\ V  V / (_| | (_| | \__ \ |_| | | | | (__ " + Environment.NewLine +
+                @"|___/ \_/\_/ \__,_|\__, | |___/\__, |_| |_|\___|" + Environment.NewLine +
+                @"                   |___/       |___/            " + Environment.NewLine ;
+
             Console.WriteLine(greetings);
+            Console.WriteLine("Press Ctrl+C to exit.");
+            Console.WriteLine("---------------------");
             Console.WriteLine(string.Format("Watching root directory: {0}", options.RootDirectory));
-            Console.WriteLine(string.Format("Maximum bucket uploads:  {0}", options.BucketMax));
+            Console.WriteLine(string.Format("Sweep interval:          {0} (s)", options.SweepInterval));
+            Console.WriteLine(string.Format("Sweep count:             {0}", options.SweepCount));
             Console.WriteLine(string.Format("Bucket upload timeout:   {0} (s)", options.Timeout));
             Console.WriteLine(string.Format("Maximum failed limit:    {0}", options.FailLimit));
-            Console.WriteLine(string.Format("Ping time interval:      {0}", options.PingInterval));
-
-            if (options.SweepEnabled)
-            {
-                Console.WriteLine(string.Format("Sweep interval:          {0} (s)", options.SweepInterval));
-                Console.WriteLine(string.Format("Sweep count:             {0}", options.SweepCount));
-            }
-            else
-                Console.WriteLine("Sweeping is disabled by command line");
+            Console.WriteLine(string.Format("Ping time interval:      {0} (s)", options.PingInterval));
+            Console.WriteLine(string.Format("Maximum bucket uploads:  {0}", options.BucketMax));
+            Console.WriteLine("---------------------");
         }
     }
 }
