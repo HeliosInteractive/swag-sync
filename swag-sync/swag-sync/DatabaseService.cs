@@ -20,6 +20,8 @@
             if (m_Database == null)
                 return;
 
+            Trace.TraceInformation("Cleaning database...");
+
             List<string> all_files;
             m_Database.PopAll(out all_files);
 
