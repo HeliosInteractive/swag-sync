@@ -1,9 +1,12 @@
 ﻿namespace swag
 {
     using System;
-    using System.Threading;
     using System.Reactive.Linq;
 
+    /// <summary>
+    /// Encapsulates a service that runs in the
+    /// background forever until Stop is called
+    /// </summary>
     public abstract class Service : IDisposable
     {
         IDisposable         m_IntervalTask;

@@ -4,10 +4,10 @@
     using System.IO;
     using Amazon.S3;
     using System.Linq;
+    using System.Threading;
     using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
-    using System.Threading;
     using System.Collections.Generic;
 
     /// <summary>
