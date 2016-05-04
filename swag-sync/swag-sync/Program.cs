@@ -26,13 +26,13 @@
 
             Trace.Listeners.Add(new ConsoleTraceListener());
 
-            if (!CheckEnvironmentVariables())
+            if (!CheckEnvironmentVariables(ref opts))
                 return 1;
 
             return Run(opts);
         }
 
-        static bool CheckEnvironmentVariables()
+        static bool CheckEnvironmentVariables(ref Options opts)
         {
             string access_key = string.Empty;
             string secret_key = string.Empty;
@@ -55,6 +55,9 @@
                     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY");
                 return false;
             }
+
+            opts.AwsAccessKey = access_key;
+            opts.AwsSecretKey = secret_key;
 
             return true;
         }

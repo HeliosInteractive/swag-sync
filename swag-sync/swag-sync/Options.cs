@@ -290,6 +290,24 @@
             }
         }
 
+        /// <summary>
+        /// Internal
+        /// </summary>
+        public string AwsSecretKey
+        {
+            get { return m_AwsSecretKey; }
+            set { m_AwsSecretKey = value; }
+        }
+
+        /// <summary>
+        /// Internal
+        /// </summary>
+        public string AwsAccessKey
+        {
+            get { return m_AwsAccessKey; }
+            set { m_AwsAccessKey = value; }
+        }
+
         private string  m_RootDirectory = "";
         private uint    m_CheckTimeout  = 0;
         private uint    m_SweepInterval = 10;
@@ -301,5 +319,7 @@
         private uint    m_Timeout       = 10;
         private bool    m_ShowHelp      = false;
         private bool    m_SweepOnce     = false;
+        private string  m_AwsSecretKey  = "";
+        private string  m_AwsAccessKey  = "";
     }
 }
