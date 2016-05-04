@@ -1,6 +1,7 @@
 ﻿namespace swag
 {
     using System;
+    using System.Diagnostics;
     using System.Reactive.Linq;
 
     /// <summary>
@@ -85,7 +86,14 @@
             Run();
 
             m_Interval = Observable.Interval(m_Period);
-            m_IntervalTask = m_Interval.Subscribe(status => { Run(); });
+            m_IntervalTask = m_Interval.Subscribe(status =>
+            {
+                try { Run(); }
+                catch (Exception ex)
+                {
+                    Trace.TraceError("Service encountered an error: {0}", ex.Message);
+                }
+            });
         }
 
         /// <summary>
