@@ -81,6 +81,7 @@
   <ItemGroup>
     <Compile Include="Bucket.cs" />
     <Compile Include="Database.cs" />
+    <Compile Include="DatabaseService.cs" />
     <Compile Include="InternetService.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="Program.cs" />

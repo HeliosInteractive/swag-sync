@@ -81,6 +81,7 @@
                     Trace.TraceInformation("About to watch...");
 
                     using (Database db = new Database(opts.FailLimit))
+                    using (DatabaseService db_service = new DatabaseService(db, opts))
                     {
                         internet.Period = opts.PingInterval;
 
@@ -92,7 +93,12 @@
                             b.SetupWatcher();
                         });
 
-                        CleanDatabase(opts, db);
+                        if (opts.CleanEnabled)
+                        {
+                            db_service.Period = opts.CleanInterval;
+                            db_service.Start();
+                        }
+
                         UploadFailedFiles(opts, db, buckets, internet);
                     }
                 }
@@ -102,29 +108,6 @@
                 bucket.Dispose();
 
             return 0;
-        }
-
-        static void CleanDatabase(Options opts, Database db)
-        {
-            List<string> all_files;
-            db.PopAll(out all_files);
-
-            all_files.ForEach(file =>
-            {
-                if (!File.Exists(file) ||
-                    !file.Contains(opts.RootDirectory))
-                {
-                    Trace.TraceWarning("Invalid file found in database: {0}", file);
-                    db.Remove(file);
-                }
-            });
-
-            if (opts.CleanEnabled)
-            {
-                Task
-                    .Delay(new TimeSpan(0, 0, (int)opts.CleanInterval))
-                    .ContinueWith(task => { CleanDatabase(opts, db); });
-            }
         }
 
         static void UploadFailedFiles(
