@@ -6,9 +6,9 @@
 
     public abstract class Service : IDisposable
     {
-        CancellationTokenSource m_CancelSource;
-        IObservable<long>       m_Interval;
-        TimeSpan                m_Period;
+        IDisposable         m_IntervalTask;
+        IObservable<long>   m_Interval;
+        TimeSpan            m_Period;
 
         public Service()
         {
@@ -27,6 +27,7 @@
         /// <summary>
         /// Time in-between executions of Run()
         /// passing 0 calls Stop()
+        /// You need to call Start() after this
         /// </summary>
         public uint Period
         {
@@ -81,8 +82,7 @@
             Run();
 
             m_Interval = Observable.Interval(m_Period);
-            m_CancelSource = new CancellationTokenSource();
-            m_Interval.Subscribe(status => { Run(); }, m_CancelSource.Token);
+            m_IntervalTask = m_Interval.Subscribe(status => { Run(); });
         }
 
         /// <summary>
@@ -93,18 +93,10 @@
             if (Disposed)
                 throw new ObjectDisposedException("Service");
 
-            try
-            {
-                if (m_CancelSource != null)
-                    m_CancelSource.Cancel();
-            }
-            catch (ObjectDisposedException) { /* no-op */ };
+            if (m_IntervalTask != null)
+                m_IntervalTask.Dispose();
 
-            if (m_Interval != null)
-                m_Interval.Wait();
-
-            m_CancelSource = null;
-            m_Interval = null;
+            m_IntervalTask = null;
         }
 
         #region IDisposable Support
