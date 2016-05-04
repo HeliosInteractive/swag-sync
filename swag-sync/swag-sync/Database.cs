@@ -224,8 +224,11 @@
                 if (disposing)
                 {
                     Trace.TraceWarning("Disposing the database.");
-                    if (m_Connection != null) m_Connection.Dispose();
-                    if (m_Command != null) m_Command.Dispose();
+                    lock(this)
+                    {
+                        if (m_Connection != null) m_Connection.Dispose();
+                        if (m_Command != null) m_Command.Dispose();
+                    }
                 }
 
                 m_Connection = null;
