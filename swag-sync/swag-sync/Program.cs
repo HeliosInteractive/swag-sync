@@ -7,7 +7,8 @@
     using System.Diagnostics;
     using System.Threading.Tasks;
     using System.Collections.Generic;
-    
+    using System.Threading;
+
     class Program
     {
         static int Main(string[] args)
@@ -82,6 +83,7 @@
 
                     using (Database db = new Database(opts.FailLimit))
                     using (DatabaseService db_service = new DatabaseService(db, opts))
+                    using (SynchronizeService sync_service = new SynchronizeService(internet, buckets, db, opts))
                     {
                         internet.Period = opts.PingInterval;
 
@@ -99,7 +101,11 @@
                             db_service.Start();
                         }
 
-                        UploadFailedFiles(opts, db, buckets, internet);
+                        if (opts.SweepEnabled)
+                        {
+                            sync_service.Period = opts.SweepInterval;
+                            sync_service.Start();
+                        }
                     }
                 }
             }
@@ -109,44 +115,7 @@
 
             return 0;
         }
-
-        static void UploadFailedFiles(
-            Options opts,
-            Database db,
-            List<Bucket> buckets,
-            InternetService internet)
-        {
-            if (internet.IsUp)
-            {
-                Trace.TraceInformation("Checking for failed files...");
-                buckets.ForEach(b => { b.Sweep(db); });
-
-                List<string> failed_files;
-                db.PopFailed(out failed_files, opts.SweepCount);
-
-                failed_files.ForEach(file =>
-                {
-                    string bucket_name = file
-                        .Replace(opts.RootDirectory, string.Empty)
-                        .Trim(Path.DirectorySeparatorChar)
-                        .Split(Path.DirectorySeparatorChar)
-                        .First();
-
-                    Bucket bucket = buckets.Find(b => b.BucketName == bucket_name);
-                    if (bucket != null) bucket.Upload(file);
-                });
-            }
-            else
-            {
-                Trace.TraceInformation("Internet is down, will check back in {0} seconds.", internet.Period);
-            }
-
-            Task
-                .Delay(new TimeSpan(0, 0, (int)opts.SweepInterval))
-                .ContinueWith(task => { UploadFailedFiles(opts, db, buckets, internet); })
-                .Wait();
-        }
-
+        
         static void Greet(Options options)
         {
             const string greetings =
