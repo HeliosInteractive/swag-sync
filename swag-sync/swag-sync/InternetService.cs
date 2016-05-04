@@ -24,10 +24,7 @@
                     return true;
 
                 if (!Started)
-                {
-                    Run();
                     Start();
-                }
 
                 return m_IsUp;
             }

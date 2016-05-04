@@ -78,6 +78,8 @@
             if (Started)
                 Stop();
 
+            Run();
+
             m_Interval = Observable.Interval(m_Period);
             m_CancelSource = new CancellationTokenSource();
             m_Interval.Subscribe(status => { Run(); }, m_CancelSource.Token);
