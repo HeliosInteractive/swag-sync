@@ -57,38 +57,44 @@
         {
             List<Bucket> buckets = new List<Bucket>();
 
-            try
+            using (InternetService internet = new InternetService())
             {
-                foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
-                    buckets.Add(new Bucket(bucket_path, opts.Timeout, opts.BucketMax));
-            }
-            catch(Exception ex)
-            {
-                Trace.TraceError("Unable to read bucket directories: {0}", ex.Message);
-                return 1;
-            }
-
-            if (opts.SweepOnce)
-            {
-                Trace.TraceInformation("About to sweep...");
-                buckets.ForEach(b => { b.Sweep(); });
-                buckets.ForEach(b => { b.FinishPendingTasks(); });
-            }
-            else
-            {
-                Trace.TraceInformation("About to watch...");
-                using (Database db = new Database(opts.FailLimit))
+                try
                 {
-                    buckets.ForEach(b =>
-                    {
-                        b.Sweep(db);
-                        b.OnFileUploaded += f => db.PushSucceed(f);
-                        b.OnFileFailed += f => db.PushFailed(f);
-                        b.SetupWatcher();
-                    });
+                    foreach (string bucket_path in Directory.GetDirectories(opts.RootDirectory))
+                        buckets.Add(new Bucket(bucket_path, opts, internet));
+                }
+                catch (Exception ex)
+                {
+                    Trace.TraceError("Unable to read bucket directories: {0}", ex.Message);
+                    return 1;
+                }
 
-                    CleanDatabase(opts, db);
-                    UploadFailedFiles(opts, db, buckets);
+                if (opts.SweepOnce)
+                {
+                    Trace.TraceInformation("About to sweep...");
+                    buckets.ForEach(b => { b.Sweep(); });
+                    buckets.ForEach(b => { b.FinishPendingTasks(); });
+                }
+                else
+                {
+                    Trace.TraceInformation("About to watch...");
+
+                    using (Database db = new Database(opts.FailLimit))
+                    {
+                        internet.Period = opts.PingInterval;
+
+                        buckets.ForEach(b =>
+                        {
+                            b.Sweep(db);
+                            b.OnFileUploaded += f => db.PushSucceed(f);
+                            b.OnFileFailed += f => db.PushFailed(f);
+                            b.SetupWatcher();
+                        });
+
+                        CleanDatabase(opts, db);
+                        UploadFailedFiles(opts, db, buckets, internet);
+                    }
                 }
             }
 
@@ -121,29 +127,40 @@
             }
         }
 
-        static void UploadFailedFiles(Options opts, Database db, List<Bucket> buckets)
+        static void UploadFailedFiles(
+            Options opts,
+            Database db,
+            List<Bucket> buckets,
+            InternetService internet)
         {
-            Trace.TraceInformation("Checking for failed files...");
-            buckets.ForEach(b => { b.Sweep(db); });
-
-            List<string> failed_files;
-            db.PopFailed(out failed_files, opts.SweepCount);
-
-            failed_files.ForEach(file =>
+            if (internet.IsUp)
             {
-                string bucket_name = file
-                    .Replace(opts.RootDirectory, string.Empty)
-                    .Trim(Path.DirectorySeparatorChar)
-                    .Split(Path.DirectorySeparatorChar)
-                    .First();
+                Trace.TraceInformation("Checking for failed files...");
+                buckets.ForEach(b => { b.Sweep(db); });
 
-                Bucket bucket = buckets.Find(b => b.BucketName == bucket_name);
-                if (bucket != null) bucket.Upload(file);
-            });
-            
+                List<string> failed_files;
+                db.PopFailed(out failed_files, opts.SweepCount);
+
+                failed_files.ForEach(file =>
+                {
+                    string bucket_name = file
+                        .Replace(opts.RootDirectory, string.Empty)
+                        .Trim(Path.DirectorySeparatorChar)
+                        .Split(Path.DirectorySeparatorChar)
+                        .First();
+
+                    Bucket bucket = buckets.Find(b => b.BucketName == bucket_name);
+                    if (bucket != null) bucket.Upload(file);
+                });
+            }
+            else
+            {
+                Trace.TraceInformation("Internet is down, will check back in {0} seconds.", internet.Period);
+            }
+
             Task
                 .Delay(new TimeSpan(0, 0, (int)opts.SweepInterval))
-                .ContinueWith(task => { UploadFailedFiles(opts, db, buckets); })
+                .ContinueWith(task => { UploadFailedFiles(opts, db, buckets, internet); })
                 .Wait();
         }
 
@@ -162,6 +179,7 @@
             Console.WriteLine(string.Format("Maximum bucket uploads:  {0}", options.BucketMax));
             Console.WriteLine(string.Format("Bucket upload timeout:   {0} (s)", options.Timeout));
             Console.WriteLine(string.Format("Maximum failed limit:    {0}", options.FailLimit));
+            Console.WriteLine(string.Format("Ping time interval:      {0}", options.PingInterval));
 
             if (options.SweepEnabled)
             {

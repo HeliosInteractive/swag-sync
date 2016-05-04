@@ -4,7 +4,6 @@
     using System.IO;
     using Amazon.S3;
     using System.Linq;
-    using Amazon.S3.Model;
     using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
@@ -22,13 +21,14 @@
         private string              m_BaseDirectory = "";
         private string              m_BucketName    = "";
         private bool                m_Validated     = false;
-        private int                 m_Timeout       = 5000;
+        private int                 m_Timeout       = 5;
         private int                 m_MaxCount      = 5;
         private FileSystemWatcher   m_Watcher       = null;
         private List<Task<Task>>    m_PendingTasks  = new List<Task<Task>>();
         private List<string>        m_PendingFiles  = new List<string>();
+        private InternetService     m_Internet      = null;
 
-        public Bucket(string base_path, uint timeout, uint maxcount)
+        public Bucket(string base_path, Options opts, InternetService internet)
         {
             if (string.IsNullOrWhiteSpace(base_path) ||
                 !Path.IsPathRooted(base_path) ||
@@ -39,9 +39,10 @@
                 return;
             }
 
+            m_Internet = internet;
             m_BaseDirectory = base_path;
-            m_Timeout = (int)timeout * 1000;
-            m_MaxCount = (int)maxcount;
+            m_Timeout = (int)opts.Timeout;
+            m_MaxCount = (int)opts.BucketMax;
             m_BucketName = m_BaseDirectory.Split(Path.DirectorySeparatorChar).Last();
             m_Validated = true;
 
@@ -150,6 +151,12 @@
                 return;
             }
 
+            if (!m_Internet.IsUp)
+            {
+                Trace.TraceInformation("Internet seems to be down. Ignoring {0}", file);
+                return;
+            }
+
             try
             {
                 m_PendingFiles.Add(file);
@@ -170,7 +177,7 @@
 
                     CancellationTokenSource token = new CancellationTokenSource();
                     Task upload_task = file_transfer_utility.UploadAsync(request, token.Token);
-                    Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(m_Timeout));
+                    Task<Task> pending_task = Task.WhenAny(upload_task, Task.Delay(TimeSpan.FromSeconds(m_Timeout)));
 
                     m_PendingTasks.Add(pending_task);
                     Trace.TraceInformation("Task added for {0}", file);
