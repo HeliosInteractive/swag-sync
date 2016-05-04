@@ -82,6 +82,7 @@
                     Trace.TraceInformation("About to watch...");
 
                     using (Database db = new Database(opts.FailLimit))
+                    using (ManualResetEvent quit_event = new ManualResetEvent(false))
                     using (DatabaseService db_service = new DatabaseService(db, opts))
                     using (SynchronizeService sync_service = new SynchronizeService(internet, buckets, db, opts))
                     {
@@ -106,6 +107,14 @@
                             sync_service.Period = opts.SweepInterval;
                             sync_service.Start();
                         }
+
+                        Console.CancelKeyPress += (sender, eArgs) =>
+                        {
+                            quit_event.Set();
+                            eArgs.Cancel = true;
+                        };
+
+                        quit_event.WaitOne();
                     }
                 }
             }
