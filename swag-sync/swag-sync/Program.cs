@@ -24,7 +24,7 @@
                 return 1;
             }
 
-            Trace.Listeners.Add(new ConsoleTraceListener());
+            Trace.Listeners.Add(new ConsoleListener());
 
             if (!CheckEnvironmentVariables(ref opts))
                 return 1;

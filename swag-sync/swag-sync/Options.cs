@@ -29,47 +29,49 @@
                     "i|interval=",
                     "the number of seconds for upload interval." +
                     "this must be an unsigned integer (number)."+
-                    "specify zero to disable sweeping.",
+                    "specify zero to disable. DEFAULT: 10",
                     (uint v) => { opts.m_SweepInterval = v; }
                 },
                 {
                     "a|aws_check_timeout=",
                     "Time in MILLIseconds to double check with AWS if upload succeed." +
                     "this must be an unsigned integer (number)."+
-                    "specify zero to disable it This option is usually not needed.",
+                    "specify zero to disable. DEFAULT: 0",
                     (uint v) => { opts.m_CheckTimeout = v; }
                 },
                 {
                     "p|ping_interval=",
                     "Time in seconds to check for Internet connectivity." +
                     "this must be an unsigned integer (number)."+
-                    "specify zero to disable Internet checks.",
+                    "specify zero to disable. DEFAULT: 10",
                     (uint v) => { opts.m_PingInterval = v; }
                 },
                 {
                     "d|database_cleanup_interval=",
                     "Time in seconds to service the integrity of the entire database." +
                     "this must be an unsigned integer (number)."+
-                    "specify zero to disable database cleanup.",
+                    "specify zero to disable. DEFAULT: 10",
                     (uint v) => { opts.m_CleanInterval = v; }
                 },
                 {
                     "c|count=",
                     "the number files to pop in every sweep PER BUCKET." +
                     "this must be an unsigned integer (number)."+
-                    "specify zero to disable sweeping.",
+                    "specify zero to disable. DEFAULT: 10",
                     (uint v) => { opts.m_SweepCount = v; }
                 },
                 {
                     "b|bucket_max=",
                     "Max number of parallel uploads PER BUCKET." +
-                    "this must be an unsigned integer (number).",
+                    "this must be an unsigned integer (number)." +
+                    "DEFAULT: 10",
                     (uint v) => { opts.m_BucketMax = v; }
                 },
                 {
                     "f|fail_limit=",
                     "Number of attempts before giving up on a failed upload." +
-                    "this must be an unsigned integer (number).",
+                    "this must be an unsigned integer (number)."+
+                    "DEFAULT: 10",
                     (uint v) => { opts.m_FailLimit = v; }
                 },
                 {
@@ -81,7 +83,8 @@
                 {
                     "t|timeout=",
                     "Timeout in seconds for upload operations." +
-                    "this must be an unsigned integer (number).",
+                    "this must be an unsigned integer (number)."+
+                    "DEFAULT: 10",
                     (uint v) => { opts.m_Timeout = v; }
                 },
                 {
