@@ -49,15 +49,15 @@
 
         #region private fields
 
-        private string              m_BucketDirectory   = "";
-        private string              m_BucketName        = "";
-        private bool                m_Validated         = false;
-        private FileSystemWatcher   m_Watcher           = null;
-        private List<Task<Task>>    m_PendingTasks      = new List<Task<Task>>();
-        private List<string>        m_PendingFiles      = new List<string>();
-        private InternetService     m_Internet          = null;
-        private Options             m_options           = null;
-        private TransferUtility     m_TransferUtility   = null;
+        private string                  m_BucketDirectory   = "";
+        private string                  m_BucketName        = "";
+        private bool                    m_Validated         = false;
+        private RecursiveFileWatcher    m_Watcher           = null;
+        private List<Task<Task>>        m_PendingTasks      = new List<Task<Task>>();
+        private List<string>            m_PendingFiles      = new List<string>();
+        private InternetService         m_Internet          = null;
+        private Options                 m_options           = null;
+        private TransferUtility         m_TransferUtility   = null;
 
         #endregion
 
@@ -96,16 +96,7 @@
 
             ShutdownWatcher();
 
-            m_Watcher = new FileSystemWatcher();
-            m_Watcher.Path = m_BucketDirectory;
-            m_Watcher.NotifyFilter =
-                NotifyFilters.LastWrite |
-                NotifyFilters.FileName;
-
-            m_Watcher.Changed += WatcherCallback;
-            m_Watcher.Renamed += WatcherCallback;
-            m_Watcher.EnableRaisingEvents = true;
-            m_Watcher.IncludeSubdirectories = true;
+            m_Watcher = new RecursiveFileWatcher(BucketDirectory, WatcherCallback);
 
             Trace.TraceInformation("Bucket {0} is watching directory {1}", BucketName, BucketDirectory);
         }
@@ -273,24 +264,23 @@
         /// </summary>
         /// <param name="source">passed by FS watcher, can be safely casted to Bucket</param>
         /// <param name="ev">event args passed by FS watcher</param>
-        private void WatcherCallback(object source, FileSystemEventArgs ev)
+        private void WatcherCallback(string file)
         {
-            if (!File.Exists(ev.FullPath))
+            if (!File.Exists(file))
             {
-                Trace.TraceError("File does not exist for this callback: {0}.", ev.FullPath);
+                Trace.TraceError("File does not exist for this callback: {0}.", file);
                 return;
             }
 
-            if (File.GetAttributes(ev.FullPath).HasFlag(FileAttributes.Directory))
+            if (File.GetAttributes(file).HasFlag(FileAttributes.Directory))
             {
-                Trace.TraceInformation("Ignoring watcher callback for directory {0}.", ev.FullPath);
+                Trace.TraceInformation("Ignoring watcher callback for directory {0}.", file);
                 return;
             }
 
-            Trace.TraceInformation("FS Event for {0} bucket: File {1} with reason {2}",
-                BucketName, ev.FullPath, ev.ChangeType.ToString());
+            Trace.TraceInformation("FS Event for bucket {0} and file {1}.", BucketName, file);
 
-            Upload(ev.FullPath);
+            Upload(file);
         }
 
         /// <summary>
@@ -517,7 +507,7 @@
                 new Uri(folder)
                 .MakeRelativeUri(pathUri)
                 .ToString()
-                .Replace('/', Path.DirectorySeparatorChar));
+                .Replace(Path.DirectorySeparatorChar, '/'));
         }
 
         #region IDisposable Support
