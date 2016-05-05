@@ -120,8 +120,15 @@
 
                         Console.CancelKeyPress += (sender, eArgs) =>
                         {
-                            quit_event.Set();
-                            eArgs.Cancel = true;
+                            try
+                            {
+                                quit_event.Set();
+                                eArgs.Cancel = true;
+                            }
+                            catch
+                            {
+                                Process.GetCurrentProcess().Kill();
+                            }
                         };
 
                         quit_event.WaitOne();
