@@ -145,7 +145,7 @@
             lock (this)
             {
                 m_Command.Parameters.Clear();
-                m_Command.CommandText = "SELECT path FROM failed WHERE attempts < @limit LIMIT @count";
+                m_Command.CommandText = "SELECT path FROM failed WHERE attempts < @limit ORDER BY RANDOM() LIMIT @count";
                 m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@count", Value = count });
                 m_Command.Parameters.Add(new SqliteParameter { ParameterName = "@limit", Value = m_FailedLimit });
                 try
