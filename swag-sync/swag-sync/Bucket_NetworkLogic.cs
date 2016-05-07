@@ -8,12 +8,17 @@
     using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
-    
+    using System.Collections.Generic;
+    using System.Collections.Concurrent;
+
     /// <summary>
     /// All methods which handle network logic of Bucket
     /// </summary>
     public partial class Bucket
     {
+        private ConcurrentQueue<string> m_PendingUploads = new ConcurrentQueue<string>();
+        private ConcurrentDictionary<string, KeyValuePair<Task<Task>, CancellationTokenSource>>
+                                        m_CurrentUploads = new ConcurrentDictionary<string, KeyValuePair<Task<Task>, CancellationTokenSource>>();
         /// <summary>
         /// Returns true if the queue for "active" uploads is full.
         /// </summary>
@@ -52,6 +57,8 @@
                 else
                 {
                     Trace.TraceWarning("Unable to dequeue.");
+
+                    Thread.Sleep(TimeSpan.FromMilliseconds(1));
                     DequeueUpload();
                 }
             }
@@ -67,15 +74,16 @@
             if (!Valid)
                 return;
 
-            if (!m_Internet.IsUp)
-            {
-                Trace.TraceWarning("Internet seems to be down. Ignoring {0}.", file);
-                return;
-            }
-
             if (m_CurrentUploads.ContainsKey(file))
             {
                 Trace.TraceWarning("File is pending. Ignoring {0}.", file);
+                return;
+            }
+
+            if (!m_Internet.IsUp)
+            {
+                Trace.TraceWarning("Internet seems to be down. Enqueuing {0}.", file);
+                EnqueueUpload(file);
                 return;
             }
 
@@ -95,9 +103,10 @@
                 {
                     Task<Task> pending_task = Task.WhenAny(upload_task, timeout_task);
 
-                    m_CurrentUploads[file] = pending_task;
+                    m_CurrentUploads[file] = new KeyValuePair<Task<Task>, CancellationTokenSource>
+                        (pending_task, token);
 
-                    Trace.TraceInformation("Upload began for {0}.", file);
+                    Trace.TraceInformation("Upload began {0}.", file);
 
                     Task completed_task = await pending_task;
                     token.Cancel();
@@ -108,7 +117,6 @@
                     {
                         if (Exists(request))
                         {
-                            Trace.TraceInformation("Upload finished {0}.", file);
                             FileUploadedCallback(file);
                         }
                         else
@@ -133,7 +141,7 @@
             {
                 RemoveFile(file);
 
-                Trace.TraceInformation("Upload ended for {0}.", file);
+                Trace.TraceInformation("Upload ended {0}.", file);
 
                 // chain uploads together.
                 DequeueUpload();
@@ -149,10 +157,12 @@
             if (!m_CurrentUploads.ContainsKey(file))
                 return;
 
-            Task<Task> task;
-            if (!m_CurrentUploads.TryRemove(file, out task))
+            KeyValuePair<Task<Task>, CancellationTokenSource> entry;
+            if (!m_CurrentUploads.TryRemove(file, out entry))
             {
                 Trace.TraceWarning("Unable to remove {0}. Retrying...", file);
+
+                Thread.Sleep(TimeSpan.FromMilliseconds(100));
                 RemoveFile(file);
             }
         }
@@ -169,7 +179,7 @@
             Trace.TraceInformation("Waiting for {0} pending tasks to finish."
                 , m_CurrentUploads.Count + m_PendingUploads.Count);
 
-            Task.WaitAll(m_CurrentUploads.Values.AsEnumerable().ToArray());
+            Task.WaitAll(m_CurrentUploads.Select(el=> { return el.Value.Key; }).ToArray());
 
             while(!m_PendingUploads.IsEmpty)
             {
@@ -183,6 +193,12 @@
             if (m_CurrentUploads.IsEmpty)
                 return;
 
+            if (!m_PendingUploads.IsEmpty)
+            {
+                // really, the fastest way to clear pending items
+                m_PendingUploads = new ConcurrentQueue<string>();
+            }
+
             Trace.TraceInformation("Cancelling {0} current tasks."
                 , m_CurrentUploads.Count);
 
@@ -190,7 +206,8 @@
             {
                 try
                 {
-                    /* to do */
+                    pending.Value.Value.Cancel();
+                    CleanupTasks(pending.Value.Key);
                 }
                 catch(Exception ex)
                 {
@@ -240,8 +257,8 @@
 
             foreach (Task task in tasks)
             {
-                try { if (task != null && !task.IsCompleted) task.Wait(); }
-                catch { Trace.TraceWarning("Unable to put Task out of its misery."); }
+                try { if (task != null && !task.IsCompleted) task.Wait(5000); }
+                catch { Trace.TraceError("Unable to put Task out of its misery."); }
             }
         }
 

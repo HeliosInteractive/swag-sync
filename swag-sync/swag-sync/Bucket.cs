@@ -6,9 +6,7 @@
     using System.Linq;
     using System.Diagnostics;
     using Amazon.S3.Transfer;
-    using System.Threading.Tasks;
     using System.Collections.Generic;
-    using System.Collections.Concurrent;
 
     /// <summary>
     /// Encapsulates logic of S3 bucket synchronizing
@@ -62,9 +60,6 @@
         private InternetService         m_Internet          = null;
         private Options                 m_options           = null;
         private TransferUtility         m_XferUtility       = null;
-        private ConcurrentQueue<string> m_PendingUploads    = new ConcurrentQueue<string>();
-        private ConcurrentDictionary<string, Task<Task>>
-                                        m_CurrentUploads    = new ConcurrentDictionary<string, Task<Task>>();
 
         #endregion
 
