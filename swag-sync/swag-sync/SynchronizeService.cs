@@ -49,7 +49,7 @@
                         .First();
 
                     Bucket bucket = m_Buckets.Find(b => b.BucketName == bucket_name);
-                    if (bucket != null) bucket.Upload(file);
+                    if (bucket != null) bucket.EnqueueUpload(file);
                 });
             }
             else
