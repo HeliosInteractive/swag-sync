@@ -106,6 +106,12 @@
                             b.Sweep(db);
                         });
 
+                        internet.ConnectionRestored += () => buckets.ForEach(b =>
+                        {
+                            if (b != null && b.Valid)
+                                b.DequeueUpload();
+                        });
+
                         if (opts.CleanEnabled)
                         {
                             db_service.Period = opts.CleanInterval;
