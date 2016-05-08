@@ -80,6 +80,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bucket.cs" />
+    <Compile Include="Bucket_NetworkLogic.cs" />
+    <Compile Include="Bucket_WatcherLogic.cs" />
     <Compile Include="ConsoleListener.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="DatabaseService.cs" />
