@@ -1,5 +1,6 @@
 ﻿namespace swag
 {
+    using System;
     using System.Net.NetworkInformation;
 
     /// <summary>
@@ -9,6 +10,11 @@
     public class InternetService : Service
     {
         private bool m_IsUp = false;
+
+        /// <summary>
+        /// Event propagated whenever Internet is restored
+        /// </summary>
+        public Action ConnectionRestored;
 
         /// <summary>
         /// Returns whether Google (aka the Internet) is reachable.
@@ -51,7 +57,12 @@
             }
 
             if (!was_up && m_IsUp)
+            {
                 Log.Write("Internet connectivity check passed.");
+
+                if (ConnectionRestored != null)
+                    ConnectionRestored();
+            }
             else if (was_up && !m_IsUp)
                 Log.Write("Internet connectivity check failed.");
         }
