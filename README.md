@@ -48,7 +48,7 @@ In this mode, application runs once, synchronizes all local files with S3 bucket
                             specify zero to disable. DEFAULT: 10
 
 -b, --bucket_max=VALUE     Max number of parallel uploads PER BUCKET. This
-                            must be an unsigned integer (number).DEFAULT: 10
+                            must be an unsigned integer (number). DEFAULT: 10
 
 -f, --fail_limit=VALUE     Number of attempts before giving up on a failed
                             upload. This must be an unsigned integer (number).
@@ -58,7 +58,10 @@ In this mode, application runs once, synchronizes all local files with S3 bucket
                             be used as bucket names.
 
 -t, --timeout=VALUE        Timeout in seconds for upload operations. This must
-                            be an unsigned integer (number).DEFAULT: 10
+                            be an unsigned integer (number). DEFAULT: 10
+
+-v, --verbosity=VALUE      Log verbosity level Can be critical, info, warn,
+                            or error. DEFAULT: critical
 
 -s, --sweep                Sweep once and quit (Ignores database).
 -h, --help                 show this message and exit
