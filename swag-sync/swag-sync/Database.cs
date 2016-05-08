@@ -27,13 +27,13 @@
             }
             catch(DllNotFoundException)
             {
-                Trace.TraceError("Database connection failed: Sqlite3 not found.");
+                Log.Error("Database connection failed: Sqlite3 not found.");
                 m_Connection = null;
                 return;
             }
             catch(Exception ex)
             {
-                Trace.TraceError("Database connection failed: ", ex.Message);
+                Log.Error("Database connection failed: ", ex.Message);
                 m_Connection = null;
                 return;
             }
@@ -50,7 +50,7 @@
             }
             catch (InvalidOperationException ex)
             {
-                Trace.TraceError("Connection to database could not be established: ", ex.Message);
+                Log.Error("Connection to database could not be established: ", ex.Message);
                 if (m_Connection != null) m_Connection.Dispose();
                 if (m_Command != null) m_Command.Dispose();
                 m_Connection = null;
@@ -223,7 +223,8 @@
             {
                 if (disposing)
                 {
-                    Trace.TraceWarning("Disposing the database.");
+                    Log.Info("Disposing the database.");
+
                     lock(this)
                     {
                         if (m_Connection != null) m_Connection.Dispose();

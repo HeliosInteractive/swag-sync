@@ -88,6 +88,12 @@
                     (uint v) => { opts.m_Timeout = v; }
                 },
                 {
+                    "v|verbosity=",
+                    "Log verbosity level Can be critical, info, warn, or error." +
+                    "DEFAULT: critical",
+                    (string v) => { opts.m_LogVerbosity = v; }
+                },
+                {
                     "s|sweep",
                     "Sweep once and quit (Ignores database).",
                     v => { opts.m_SweepOnce = (v != null); }
@@ -311,6 +317,16 @@
             set { m_AwsAccessKey = value; }
         }
 
+        /// <summary>
+        /// Log verbosity level
+        /// </summary>
+        public string LogVerbosity
+        {
+            get { return m_LogVerbosity; }
+            set { m_LogVerbosity = value; }
+        }
+
+        private string  m_LogVerbosity  = "info";
         private string  m_RootDirectory = "";
         private uint    m_CheckTimeout  = 0;
         private uint    m_SweepInterval = 10;

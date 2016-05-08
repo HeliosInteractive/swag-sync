@@ -82,9 +82,9 @@
     <Compile Include="Bucket.cs" />
     <Compile Include="Bucket_NetworkLogic.cs" />
     <Compile Include="Bucket_WatcherLogic.cs" />
-    <Compile Include="ConsoleListener.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="DatabaseService.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="RecursiveFileWatcher.cs" />
     <Compile Include="InternetService.cs" />
     <Compile Include="Options.cs" />

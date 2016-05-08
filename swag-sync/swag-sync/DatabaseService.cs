@@ -1,8 +1,7 @@
 ﻿namespace swag
 {
-    using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
+    using System.Collections.Generic;
 
     class DatabaseService : Service
     {
@@ -20,7 +19,7 @@
             if (m_Database == null)
                 return;
 
-            Trace.TraceInformation("Cleaning database...");
+            Log.Info("Running database service.");
 
             List<string> all_files;
             m_Database.PopAll(out all_files);
@@ -30,7 +29,7 @@
                 if (!File.Exists(file) ||
                     (m_Options != null && !file.Contains(m_Options.RootDirectory)))
                 {
-                    Trace.TraceWarning("Invalid file found in database: {0}", file);
+                    Log.Warn("Invalid file found in database: {0}", file);
                     m_Database.Remove(file);
                 }
             });

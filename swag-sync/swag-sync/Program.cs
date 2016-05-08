@@ -24,7 +24,7 @@
                 return 1;
             }
 
-            Trace.Listeners.Add(new ConsoleListener());
+            Log.Setup(opts);
 
             if (!CheckEnvironmentVariables(ref opts))
                 return 1;
@@ -44,14 +44,14 @@
             }
             catch (SecurityException ex)
             {
-                Trace.TraceError("Unable to access environment variables: {0}", ex.Message);
+                Log.Error("Unable to access environment variables: {0}", ex.Message);
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(access_key) ||
                 string.IsNullOrWhiteSpace(secret_key))
             {
-                Trace.TraceError("You need to define {0} and {1} environment variables!",
+                Log.Error("You need to define {0} and {1} environment variables!",
                     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY");
                 return false;
             }
@@ -77,19 +77,19 @@
                 }
                 catch (Exception ex)
                 {
-                    Trace.TraceError("Unable to read bucket directories: {0}", ex.Message);
+                    Log.Error("Unable to read bucket directories: {0}", ex.Message);
                     return 1;
                 }
 
                 if (opts.SweepOnce)
                 {
-                    Trace.TraceInformation("About to sweep...");
+                    Log.Info("About to sweep...");
                     buckets.ForEach(b => { b.Sweep(); });
                     buckets.ForEach(b => { b.FinishPendingTasks(); });
                 }
                 else
                 {
-                    Trace.TraceInformation("About to watch...");
+                    Log.Info("About to watch...");
 
                     using (Database db = new Database(opts.FailLimit))
                     using (ManualResetEvent quit_event = new ManualResetEvent(false))
@@ -100,10 +100,10 @@
 
                         buckets.ForEach(b =>
                         {
-                            b.Sweep(db);
                             b.OnFileUploaded += f => db.PushSucceed(f);
                             b.OnFileFailed += f => db.PushFailed(f);
                             b.SetupWatcher();
+                            b.Sweep(db);
                         });
 
                         if (opts.CleanEnabled)

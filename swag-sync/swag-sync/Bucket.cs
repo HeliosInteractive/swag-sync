@@ -67,19 +67,19 @@
         {
             if (opts == null)
             {
-                Trace.TraceError("Options supplied to Bucket is empty.");
+                Log.Error("Options supplied to Bucket is empty.");
                 return;
             }
 
             if (internet == null)
             {
-                Trace.TraceError("Internet supplied to Bucket is empty.");
+                Log.Error("Internet supplied to Bucket is empty.");
                 return;
             }
 
             if (!CheckBucketPath(base_path))
             {
-                Trace.TraceError("Bucket path supplied is invalid: {0}.", BucketPath);
+                Log.Error("Bucket path supplied is invalid: {0}.", BucketPath);
                 return;
             }
 
@@ -90,11 +90,15 @@
 
             if (m_BucketName.Contains(Path.DirectorySeparatorChar))
             {
-                Trace.TraceError("Unable to extract a valid bucket name: {0}.", m_BucketName);
+                Log.Error("Unable to extract a valid bucket name: {0}.", m_BucketName);
                 return;
             }
 
-            m_Validated = SetupTransferUtility();
+            if (SetupTransferUtility())
+            {
+                Log.Write("Bucket {0} is setup.", BucketName);
+                m_Validated = true;
+            }
         }
 
         /// <summary>
@@ -128,6 +132,8 @@
                             // basically if it's in US-East-1 region, location string is NULL!
                             string bucket_location = (string.IsNullOrWhiteSpace(location.Location.Value) ? "us-east-1" : location.Location.Value);
 
+                            Log.Info("Bucket {0} is located at {1}.", BucketName, bucket_location);
+
                             m_XferUtility = new TransferUtility
                                 (new AmazonS3Client
                                 ((Amazon.RegionEndpoint.GetBySystemName(bucket_location))));
@@ -137,7 +143,7 @@
             }
             catch(Exception ex)
             {
-                Trace.TraceError("Unable to setup the bucket {0}: {1}.", BucketName, ex.Message);
+                Log.Error("Unable to setup the bucket {0}: {1}.", BucketName, ex.Message);
                 m_XferUtility = null;
             }
 
@@ -163,7 +169,7 @@
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Unable to check bucket path : {0}.", ex.Message);
+                Log.Error("Unable to check bucket path : {0}.", ex.Message);
             }
 
             return true;
@@ -245,6 +251,8 @@
 
                     if (m_Watcher != null)
                         m_Watcher.Dispose();
+
+                    Log.Write("Disposing bucket {0}", BucketName);
                 }
 
                 m_Watcher = null;

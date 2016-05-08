@@ -1,7 +1,6 @@
 ﻿namespace swag
 {
     using System;
-    using System.Diagnostics;
     using System.Reactive.Linq;
 
     /// <summary>
@@ -91,7 +90,7 @@
                 try { Run(); }
                 catch (Exception ex)
                 {
-                    Trace.TraceError("Service encountered an error: {0}", ex.Message);
+                    Log.Error("Service encountered an error: {0}", ex.Message);
                 }
             });
         }
