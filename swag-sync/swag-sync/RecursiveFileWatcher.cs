@@ -37,14 +37,14 @@
             }
             catch (FileNotFoundException ex)
             {
-                Trace.TraceInformation("Watcher spawned too soon. Waiting for 750 ms: {0}", ex.Message);
+                Log.Warn("Watcher spawned too soon. Waiting for 750 ms: {0}", ex.Message);
 
                 Thread.Sleep(FileCreationLatency);
                 m_Watcher.EnableRaisingEvents = true;
             }
             catch
             {
-                Trace.TraceInformation("Watcher failed.");
+                Log.Error("Watcher for {0} failed.", base_path);
                 return;
             }
 
@@ -53,7 +53,7 @@
             m_Watcher.Deleted += OnDeleted;
             m_Watcher.Created += OnCreated;
 
-            Trace.TraceInformation("Watcher is watching directory: {0}", base_path);
+            Log.Info("Watcher is watching directory: {0}", base_path);
 
             foreach (var subdir in Directory.EnumerateDirectories(base_path))
             {
@@ -80,7 +80,7 @@
                     var found = m_Watchers.FindAll(w => { return IsValid(w) && w.m_Watcher.Path == args.FullPath; });
                     found.ForEach(w =>
                     {
-                        Trace.TraceInformation("Watcher removed directory: {0}", args.FullPath);
+                        Log.Info("Watcher removed directory: {0}", args.FullPath);
                         m_Watchers.Remove(w);
                         w.Dispose();
                     });
@@ -88,7 +88,7 @@
             }
             catch(Exception ex)
             {
-                Trace.TraceError("Watcher encountered and error: {0}", ex.Message);
+                Log.Error("Watcher encountered and error: {0}", ex.Message);
             }
         }
 
@@ -103,14 +103,14 @@
                         if (m_Watchers.Find(w => { return IsValid(w) && w.m_Watcher.Path == args.FullPath; }) == null)
                         {
                             m_Watchers.Add(new RecursiveFileWatcher(args.FullPath, m_Handler));
-                            Trace.TraceInformation("Watcher added directory: {0}", args.FullPath);
+                            Log.Info("Watcher added directory: {0}", args.FullPath);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Watcher encountered and error: {0}", ex.Message);
+                Log.Error("Watcher encountered and error: {0}", ex.Message);
             }
         }
 
@@ -125,7 +125,7 @@
                         if (m_Watchers.Find(w => { return IsValid(w) && w.m_Watcher.Path == args.FullPath; }) == null)
                         {
                             m_Watchers.Add(new RecursiveFileWatcher(args.FullPath, m_Handler));
-                            Trace.TraceInformation("Watcher added directory: {0}", args.FullPath);
+                            Log.Info("Watcher added directory: {0}", args.FullPath);
                         }
                     }
                     else
@@ -137,7 +137,7 @@
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Watcher encountered and error: {0}", ex.Message);
+                Log.Error("Watcher encountered and error: {0}", ex.Message);
             }
         }
 
@@ -150,7 +150,7 @@
                     if (Directory.Exists(args.FullPath))
                     {
                         m_Watchers.Add(new RecursiveFileWatcher(args.FullPath, m_Handler));
-                        Trace.TraceInformation("Watcher added directory: {0}", args.FullPath);
+                        Log.Info("Watcher added directory: {0}", args.FullPath);
                     }
                     else
                     {
@@ -161,7 +161,7 @@
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Watcher encountered and error: {0}", ex.Message);
+                Log.Error("Watcher encountered and error: {0}", ex.Message);
             }
         }
 

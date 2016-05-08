@@ -12,7 +12,7 @@ Unidirectional S3 file sync utility (local to S3) with fault tolerance and cachi
 Open up Visual Studio (2015+) and do a *Rebuild All*. You can run the same binaries produced, under Linux with [`mono`](http://www.mono-project.com/).
 
 ## Running
-*swag-sync* can be run in two modes: *standalone* or *sweep-once*. In both cases you need to have two environment variables defined: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+*swag-sync* can be run in two modes: *standalone* or *sweep-once*. In both cases you need to have two environment variables defined: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. **You alos need SQLite3's binaries, which do not come with this utility and need to be [downloaded](https://www.sqlite.org/download.html) separately.**
 
 ### Standalone mode
 In this mode, *swag-sync* can be thought as a "daemon" that watches your local directories and synchronize them with S3 buckets. Synchronization happens in two ways:
@@ -48,7 +48,7 @@ In this mode, application runs once, synchronizes all local files with S3 bucket
                             specify zero to disable. DEFAULT: 10
 
 -b, --bucket_max=VALUE     Max number of parallel uploads PER BUCKET. This
-                            must be an unsigned integer (number).DEFAULT: 10
+                            must be an unsigned integer (number). DEFAULT: 10
 
 -f, --fail_limit=VALUE     Number of attempts before giving up on a failed
                             upload. This must be an unsigned integer (number).
@@ -58,7 +58,10 @@ In this mode, application runs once, synchronizes all local files with S3 bucket
                             be used as bucket names.
 
 -t, --timeout=VALUE        Timeout in seconds for upload operations. This must
-                            be an unsigned integer (number).DEFAULT: 10
+                            be an unsigned integer (number). DEFAULT: 10
+
+-v, --verbosity=VALUE      Log verbosity level Can be critical, info, warn,
+                            or error. DEFAULT: critical
 
 -s, --sweep                Sweep once and quit (Ignores database).
 -h, --help                 show this message and exit

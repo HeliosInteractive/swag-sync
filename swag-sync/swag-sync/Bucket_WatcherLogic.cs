@@ -16,7 +16,7 @@
             ShutdownWatcher();
             m_Watcher = new RecursiveFileWatcher(BucketPath, WatcherCallback);
 
-            Trace.TraceInformation("Bucket {0} is watching at directory {1}.", BucketName, BucketPath);
+            Log.Write("Bucket {0} is watching at directory {1}.", BucketName, BucketPath);
         }
 
         /// <summary>
@@ -30,7 +30,7 @@
 
             if (m_Watcher != null)
             {
-                Trace.TraceWarning("Bucket {0} is no longer being watched.", BucketName);
+                Log.Write("Bucket {0} is no longer being watched.", BucketName);
 
                 m_Watcher.Dispose();
                 m_Watcher = null;
@@ -48,13 +48,13 @@
 
             if (!File.Exists(file))
             {
-                Trace.TraceError("File does not exist for this callback: {0}.", file);
+                Log.Error("File does not exist for this callback: {0}.", file);
                 return;
             }
 
             if (Directory.Exists(file))
             {
-                Trace.TraceInformation("Ignoring watcher callback for directory {0}.", file);
+                Log.Info("Ignoring watcher callback for directory {0}.", file);
                 return;
             }
 

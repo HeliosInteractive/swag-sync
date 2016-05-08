@@ -1,6 +1,6 @@
 ﻿namespace swag
 {
-    using System.Diagnostics;
+    using System;
     using System.Net.NetworkInformation;
 
     /// <summary>
@@ -10,6 +10,11 @@
     public class InternetService : Service
     {
         private bool m_IsUp = false;
+
+        /// <summary>
+        /// Event propagated whenever Internet is restored
+        /// </summary>
+        public Action ConnectionRestored;
 
         /// <summary>
         /// Returns whether Google (aka the Internet) is reachable.
@@ -32,24 +37,34 @@
 
         protected override void Run()
         {
-            Trace.TraceInformation("Checking for Internet connectivity...");
+            bool was_up = m_IsUp;
 
-            try
+            Log.Info("Checking Internet connectivity.");
+
+            if (Period != 0)
             {
-                using (var ping = new Ping())
+                try
                 {
-                    m_IsUp = (ping.Send("8.8.8.8").Status == IPStatus.Success);
+                    using (var ping = new Ping())
+                    {
+                        m_IsUp = (ping.Send("8.8.8.8").Status == IPStatus.Success);
+                    }
+                }
+                catch
+                {
+                    m_IsUp = false;
                 }
             }
-            catch
-            {
-                m_IsUp = false;
-            }
 
-            if (m_IsUp)
-                Trace.TraceInformation("Internet connectivity check passed.");
-            else
-                Trace.TraceInformation("Internet connectivity check failed.");
+            if (!was_up && m_IsUp)
+            {
+                Log.Write("Internet connectivity check passed.");
+
+                if (ConnectionRestored != null)
+                    ConnectionRestored();
+            }
+            else if (was_up && !m_IsUp)
+                Log.Write("Internet connectivity check failed.");
         }
     }
 }

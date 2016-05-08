@@ -40,6 +40,8 @@
                 return;
 
             m_PendingUploads.Enqueue(file);
+
+            Log.Info("{0} enqueued for uploading.", file);
         }
 
         /// <summary>
@@ -53,10 +55,13 @@
                 string pulled;
 
                 if (m_PendingUploads.TryDequeue(out pulled))
+                {
+                    Log.Info("{0} dequeued for uploading.", pulled);
                     Upload(pulled);
+                }
                 else
                 {
-                    Trace.TraceWarning("Unable to dequeue.");
+                    Log.Warn("Unable to dequeue.");
 
                     Thread.Sleep(TimeSpan.FromMilliseconds(1));
                     DequeueUpload();
@@ -76,13 +81,13 @@
 
             if (m_CurrentUploads.ContainsKey(file))
             {
-                Trace.TraceWarning("File is pending. Ignoring {0}.", file);
+                Log.Warn("File is pending. Ignoring {0}.", file);
                 return;
             }
 
             if (!m_Internet.IsUp)
             {
-                Trace.TraceWarning("Internet seems to be down. Enqueuing {0}.", file);
+                Log.Warn("Internet seems to be down. Enqueuing {0}.", file);
                 EnqueueUpload(file);
                 return;
             }
@@ -106,7 +111,7 @@
                     m_CurrentUploads[file] = new KeyValuePair<Task<Task>, CancellationTokenSource>
                         (pending_task, token);
 
-                    Trace.TraceInformation("Upload began {0}.", file);
+                    Log.Write("Upload began {0}.", file);
 
                     Task completed_task = await pending_task;
                     token.Cancel();
@@ -117,6 +122,7 @@
                     {
                         if (Exists(request))
                         {
+                            Log.Write("Upload succeed {0}.", file);
                             FileUploadedCallback(file);
                         }
                         else
@@ -134,16 +140,12 @@
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Upload failed {0}: {1}.", ex.Message, file);
+                Log.Write("Upload failed {0}: {1}.", ex.Message, file);
                 FileFailedCallback(file);
             }
             finally
             {
                 RemoveFile(file);
-
-                Trace.TraceInformation("Upload ended {0}.", file);
-
-                // chain uploads together.
                 DequeueUpload();
             }
         }
@@ -160,7 +162,7 @@
             KeyValuePair<Task<Task>, CancellationTokenSource> entry;
             if (!m_CurrentUploads.TryRemove(file, out entry))
             {
-                Trace.TraceWarning("Unable to remove {0}. Retrying...", file);
+                Log.Warn("Unable to remove {0}. Retrying...", file);
 
                 Thread.Sleep(TimeSpan.FromMilliseconds(100));
                 RemoveFile(file);
@@ -176,7 +178,7 @@
             if (m_CurrentUploads.IsEmpty && m_PendingUploads.IsEmpty)
                 return;
 
-            Trace.TraceInformation("Waiting for {0} pending tasks to finish."
+            Log.Write("Waiting for {0} pending tasks to finish."
                 , m_CurrentUploads.Count + m_PendingUploads.Count);
 
             Task.WaitAll(m_CurrentUploads.Select(el=> { return el.Value.Key; }).ToArray());
@@ -199,7 +201,7 @@
                 m_PendingUploads = new ConcurrentQueue<string>();
             }
 
-            Trace.TraceInformation("Cancelling {0} current tasks."
+            Log.Write("Cancelling {0} current tasks."
                 , m_CurrentUploads.Count);
 
             foreach(var pending in m_CurrentUploads)
@@ -211,7 +213,7 @@
                 }
                 catch(Exception ex)
                 {
-                    Trace.TraceError("Unable to cancel {0}: {1}.",
+                    Log.Error("Unable to cancel {0}: {1}.",
                         pending.Key, ex.Message);
                 }
             }
@@ -258,7 +260,7 @@
             foreach (Task task in tasks)
             {
                 try { if (task != null && !task.IsCompleted) task.Wait(5000); }
-                catch { Trace.TraceError("Unable to put Task out of its misery."); }
+                catch { Log.Error("Unable to put Task out of its misery."); }
             }
         }
 
@@ -292,7 +294,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Trace.TraceError("Unable to query S3 for file existence ({0}): {1}/{2}",
+                    Log.Error("Unable to query S3 for file existence ({0}): {1}/{2}",
                         ex.Message, request.BucketName, request.Key);
 
                     exists = false;

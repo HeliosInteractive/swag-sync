@@ -1,9 +1,8 @@
 ﻿namespace swag
 {
-    using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Collections.Generic;
 
     class SynchronizeService : Service
     {
@@ -34,7 +33,8 @@
 
             if (m_Internet.IsUp)
             {
-                Trace.TraceInformation("Checking for failed files...");
+                Log.Info("Running synchronization service.");
+
                 m_Buckets.ForEach(b => { b.Sweep(m_Database); });
 
                 List<string> failed_files;
@@ -54,7 +54,7 @@
             }
             else
             {
-                Trace.TraceInformation("Internet is down, will check back in {0} seconds.", m_Options.SweepInterval);
+                Log.Info("Internet is down, will check back in {0} seconds.", m_Options.SweepInterval);
             }
         }
     }
