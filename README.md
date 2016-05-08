@@ -12,7 +12,7 @@ Unidirectional S3 file sync utility (local to S3) with fault tolerance and cachi
 Open up Visual Studio (2015+) and do a *Rebuild All*. You can run the same binaries produced, under Linux with [`mono`](http://www.mono-project.com/).
 
 ## Running
-*swag-sync* can be run in two modes: *standalone* or *sweep-once*. In both cases you need to have two environment variables defined: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+*swag-sync* can be run in two modes: *standalone* or *sweep-once*. In both cases you need to have two environment variables defined: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. **You alos need SQLite3's binaries, which do not come with this utility and need to be [downloaded](https://www.sqlite.org/download.html) separately.**
 
 ### Standalone mode
 In this mode, *swag-sync* can be thought as a "daemon" that watches your local directories and synchronize them with S3 buckets. Synchronization happens in two ways:
