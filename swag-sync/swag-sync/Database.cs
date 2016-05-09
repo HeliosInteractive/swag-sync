@@ -3,7 +3,6 @@
     using System;
     using System.Data;
     using Mono.Data.Sqlite;
-    using System.Diagnostics;
     using System.Collections.Generic;
 
     /// <summary>
