@@ -15,6 +15,11 @@
         /// Event propagated whenever Internet is restored
         /// </summary>
         public Action ConnectionRestored;
+        
+        /// <summary>
+        /// Event propagated whenever Internet is lost
+        /// </summary>
+        public Action ConnectionLost;
 
         /// <summary>
         /// Returns whether Google (aka the Internet) is reachable.
@@ -43,17 +48,30 @@
 
             if (Period != 0)
             {
-                try
+                bool timed_out = true;
+
+                TaskUtils.RunTimed(() =>
                 {
-                    using (var ping = new Ping())
+                    try
                     {
-                        m_IsUp = (ping.Send("8.8.8.8").Status == IPStatus.Success);
+                        using (var ping = new Ping())
+                        {
+                            m_IsUp = (ping.Send("8.8.8.8").Status == IPStatus.Success);
+                        }
                     }
-                }
-                catch
-                {
+                    catch
+                    {
+                        m_IsUp = false;
+                    }
+                    finally
+                    {
+                        timed_out = false;
+                    }
+                },
+                TimeSpan.FromSeconds(5)).Wait();
+
+                if (timed_out)
                     m_IsUp = false;
-                }
             }
 
             if (!was_up && m_IsUp)
@@ -64,7 +82,12 @@
                     ConnectionRestored();
             }
             else if (was_up && !m_IsUp)
+            {
                 Log.Write("Internet connectivity check failed.");
+
+                if (ConnectionLost != null)
+                    ConnectionLost();
+            }
         }
     }
 }

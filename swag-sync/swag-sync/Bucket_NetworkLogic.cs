@@ -23,7 +23,7 @@
         /// </summary>
         public bool IsFull
         {
-            get { return m_CurrentUploads.Count > m_options.BucketMax; }
+            get { return m_CurrentUploads.Count >= m_options.BucketMax; }
         }
 
         /// <summary>
@@ -49,6 +49,9 @@
         /// </summary>
         public void DequeueUpload()
         {
+            if (!m_Internet.IsUp || !Connected)
+                return;
+
             if (!IsFull && !m_PendingUploads.IsEmpty)
             {
                 string pulled;
@@ -73,7 +76,10 @@
         /// </summary>
         public void FillBucket()
         {
-            while (!IsFull)
+            if (!m_Internet.IsUp || !Connected)
+                return;
+
+            while (!IsFull && !m_PendingUploads.IsEmpty)
                 DequeueUpload();
         }
 
@@ -84,7 +90,7 @@
         /// <param name="file">file to be uploaded</param>
         private async void Upload(string file)
         {
-            if (!Ready)
+            if (Disposed || !Validated)
                 return;
 
             if (m_CurrentUploads.ContainsKey(file))
@@ -93,9 +99,9 @@
                 return;
             }
 
-            if (!m_Internet.IsUp)
+            if (!m_Internet.IsUp || !Connected)
             {
-                Log.Warn("Internet seems to be down. Enqueuing {0}.", file);
+                Log.Warn("Connection seems to be down. Enqueuing back {0}.", file);
                 EnqueueUpload(file);
                 return;
             }
@@ -197,6 +203,9 @@
             }
         }
 
+        /// <summary>
+        /// Cancels ALL current upload requests "active" or "inactive"
+        /// </summary>
         public void CancelPendingTasks()
         {
             if (m_CurrentUploads.IsEmpty)

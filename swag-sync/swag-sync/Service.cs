@@ -76,23 +76,34 @@
         /// </summary>
         public void Start()
         {
-            if (Disposed)
-                throw new ObjectDisposedException("Service");
-
-            if (Started)
-                Stop();
-
-            Run();
-
-            m_Interval = Observable.Interval(m_Period);
-            m_IntervalTask = m_Interval.Subscribe(status =>
+            lock(this)
             {
-                try { Run(); }
-                catch (Exception ex)
-                {
-                    Log.Error("Service encountered an error: {0}", ex.Message);
-                }
-            });
+                if (Disposed)
+                    throw new ObjectDisposedException("Service");
+
+                if (Started)
+                    Stop();
+
+                if (Started)
+                    return;
+
+                RunSafe();
+
+                m_Interval = Observable.Interval(m_Period);
+                m_IntervalTask = m_Interval.Subscribe(status => { RunSafe(); });
+            }
+        }
+
+        /// <summary>
+        /// Invoke's Run() and catches any exception it throws
+        /// </summary>
+        private void RunSafe()
+        {
+            try { Run(); }
+            catch (Exception ex)
+            {
+                Log.Error("Service encountered an error: {0}", ex.Message);
+            }
         }
 
         /// <summary>
