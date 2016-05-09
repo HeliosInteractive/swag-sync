@@ -33,7 +33,7 @@
         /// <param name="file">file to be uploaded</param>
         public void EnqueueUpload(string file)
         {
-            DequeueUpload();
+            FillBucket();
 
             if (m_PendingUploads.Contains(file) || m_CurrentUploads.ContainsKey(file))
                 return;
@@ -66,6 +66,15 @@
                     DequeueUpload();
                 }
             }
+        }
+
+        /// <summary>
+        /// Fill bucket with requests until it's full.
+        /// </summary>
+        public void FillBucket()
+        {
+            while (!IsFull)
+                DequeueUpload();
         }
 
         /// <summary>
@@ -144,7 +153,7 @@
             finally
             {
                 RemoveFile(file);
-                DequeueUpload();
+                FillBucket();
             }
         }
 
@@ -183,7 +192,7 @@
 
             while(!m_PendingUploads.IsEmpty)
             {
-                DequeueUpload();
+                FillBucket();
                 FinishPendingTasks();
             }
         }

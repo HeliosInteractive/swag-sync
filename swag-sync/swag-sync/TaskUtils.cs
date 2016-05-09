@@ -8,22 +8,30 @@
     {
         public static async Task<bool> RunTimed(Action action, TimeSpan timeout)
         {
-            bool timedout = false;
+            bool timedout = true;
 
-            if (action == null)
-                return timedout;
-
-            using (var token_source = new CancellationTokenSource())
-            using (var timeout_task = Task.Delay(timeout, token_source.Token))
-            using (var action_task = Task.Run(action, token_source.Token))
-            using (var completed_task = await Task.WhenAny(timeout_task, action_task))
+            try
             {
-                if (completed_task == action_task)
-                    timedout = true;
+                if (action == null)
+                    return timedout;
 
-                token_source.Cancel();
+                using (var token_source = new CancellationTokenSource())
+                using (var timeout_task = Task.Delay(timeout, token_source.Token))
+                using (var action_task = Task.Run(action, token_source.Token))
+                using (var completed_task = await Task.WhenAny(timeout_task, action_task))
+                {
+                    if (completed_task == action_task)
+                        timedout = true;
 
-                CleanupTasks(timeout_task, action_task, completed_task);
+                    token_source.Cancel();
+
+                    CleanupTasks(timeout_task, action_task, completed_task);
+                }
+            }
+            catch(Exception ex)
+            {
+                Log.Error("Running timed task failed: {0}", ex.Message);
+                timedout = true;
             }
 
             return timedout;
