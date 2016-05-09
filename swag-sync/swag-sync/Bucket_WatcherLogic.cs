@@ -1,7 +1,6 @@
 ﻿namespace swag
 {
     using System.IO;
-    using System.Diagnostics;
 
     public partial class Bucket
     {
@@ -10,7 +9,7 @@
         /// </summary>
         public void SetupWatcher()
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             ShutdownWatcher();
@@ -25,7 +24,7 @@
         /// </summary>
         public void ShutdownWatcher()
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             if (m_Watcher != null)
@@ -43,7 +42,7 @@
         /// <param name="file">file passed by FS watcher</param>
         protected virtual void WatcherCallback(string file)
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             if (!File.Exists(file))

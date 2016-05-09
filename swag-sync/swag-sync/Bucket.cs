@@ -4,7 +4,6 @@
     using System.IO;
     using Amazon.S3;
     using System.Linq;
-    using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Collections.Generic;
 
@@ -44,9 +43,35 @@
         /// <summary>
         /// Answers true if this instance is ready to upload
         /// </summary>
-        public bool Valid
+        public bool Ready
         {
-            get { return !m_Disposed && m_Validated; }
+            get { return !Disposed && Validated && Connected; }
+        }
+
+        /// <summary>
+        /// Answers true if client has valid members passed
+        /// to its constructor (e.g can reconnect later)
+        /// </summary>
+        public bool Validated
+        {
+            get { return m_Validated; }
+        }
+
+        /// <summary>
+        /// Answers true if this instance is disposed and no
+        /// longer usable.
+        /// </summary>
+        public bool Disposed
+        {
+            get { return m_Disposed; }
+        }
+
+        /// <summary>
+        /// Answers true if connection to S3 is established
+        /// </summary>
+        public bool Connected
+        {
+            get { return m_XferUtility != null; }
         }
 
         #endregion
@@ -94,11 +119,30 @@
                 return;
             }
 
-            if (SetupTransferUtility())
-            {
+            m_Validated = true;
+
+            Connect();
+        }
+
+        /// <summary>
+        /// Connects to S3 if instance is validated
+        /// no-op if already connected
+        /// </summary>
+        /// <returns>success of the operation</returns>
+        public bool Connect()
+        {
+            if (Connected)
+                return true;
+
+            bool client_ready = false;
+            TaskUtils.RunTimed(() => { client_ready = SetupTransferUtility(); }, TimeSpan.FromSeconds(5)).Wait();
+
+            if (client_ready)
                 Log.Write("Bucket {0} is setup.", BucketName);
-                m_Validated = true;
-            }
+            else
+                Log.Write("Bucket {0} was unable to setup.", BucketName);
+
+            return client_ready;
         }
 
         /// <summary>
@@ -181,7 +225,7 @@
         /// <param name="file">file that was uploaded</param>
         protected virtual void FileUploadedCallback(string file)
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             if (OnFileUploaded != null)
@@ -194,7 +238,7 @@
         /// <param name="file">file that was failed to upload</param>
         protected virtual void FileFailedCallback(string file)
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             if (OnFileFailed != null)

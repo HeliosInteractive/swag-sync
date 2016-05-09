@@ -5,7 +5,6 @@
     using System.Linq;
     using Amazon.S3.Model;
     using System.Threading;
-    using System.Diagnostics;
     using Amazon.S3.Transfer;
     using System.Threading.Tasks;
     using System.Collections.Generic;
@@ -76,7 +75,7 @@
         /// <param name="file">file to be uploaded</param>
         private async void Upload(string file)
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             if (m_CurrentUploads.ContainsKey(file))
@@ -105,9 +104,8 @@
                 using (CancellationTokenSource token = new CancellationTokenSource())
                 using (Task upload_task = m_XferUtility.UploadAsync(request, token.Token))
                 using (Task timeout_task = Task.Delay(TimeSpan.FromSeconds(m_options.Timeout), token.Token))
+                using (Task<Task> pending_task = Task.WhenAny(upload_task, timeout_task))
                 {
-                    Task<Task> pending_task = Task.WhenAny(upload_task, timeout_task);
-
                     m_CurrentUploads[file] = new KeyValuePair<Task<Task>, CancellationTokenSource>
                         (pending_task, token);
 
@@ -135,7 +133,7 @@
                         throw new TimeoutException("Task timed out.");
                     }
 
-                    CleanupTasks(timeout_task, upload_task);
+                    TaskUtils.CleanupTasks(timeout_task, upload_task);
                 }
             }
             catch (Exception ex)
@@ -209,7 +207,7 @@
                 try
                 {
                     pending.Value.Value.Cancel();
-                    CleanupTasks(pending.Value.Key);
+                    TaskUtils.CleanupTasks(pending.Value.Key);
                 }
                 catch(Exception ex)
                 {
@@ -225,7 +223,7 @@
         /// </summary>
         public void Sweep()
         {
-            if (!Valid)
+            if (!Ready)
                 return;
 
             foreach (string file in EnumerateLocalFiles())
@@ -240,28 +238,11 @@
         /// <param name="db">database instance</param>
         public void Sweep(Database db)
         {
-            if (!Valid || db == null)
+            if (!Ready || db == null)
                 return;
 
             foreach (string file in EnumerateLocalFiles())
                 if (!db.Exists(file)) EnqueueUpload(file);
-        }
-
-        /// <summary>
-        /// Forcefully cleans up tasks.
-        /// This should be called after CancellationToken is invoked
-        /// </summary>
-        /// <param name="tasks">tasks to wait for</param>
-        private void CleanupTasks(params Task[] tasks)
-        {
-            if (tasks == null || tasks.Length == 0)
-                return;
-
-            foreach (Task task in tasks)
-            {
-                try { if (task != null && !task.IsCompleted) task.Wait(5000); }
-                catch { Log.Error("Unable to put Task out of its misery."); }
-            }
         }
 
         /// <summary>
@@ -272,14 +253,15 @@
         /// <returns></returns>
         private bool Exists(TransferUtilityUploadRequest request)
         {
-            if (!Valid || request == null || !m_options.CheckEnabled)
+            if (!Ready || request == null)
+                return false;
+
+            if (!m_options.CheckEnabled)
                 return true;
 
             bool exists = false;
 
-            using (CancellationTokenSource cts = new CancellationTokenSource())
-            using (Task timeout = Task.Delay(TimeSpan.FromMilliseconds(m_options.CheckTimeout), cts.Token))
-            using (Task exist_check = Task.Run(() =>
+            TaskUtils.RunTimed(() =>
             {
                 try
                 {
@@ -299,13 +281,9 @@
 
                     exists = false;
                 }
-            }, cts.Token))
-            {
-                Task.WaitAny(timeout, exist_check);
-                cts.Cancel();
-
-                CleanupTasks(timeout, exist_check);
-            }
+            },
+            TimeSpan.FromMilliseconds(m_options.CheckTimeout)).
+            Wait();
 
             return exists;
         }
