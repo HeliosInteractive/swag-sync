@@ -49,6 +49,9 @@
         /// </summary>
         public void DequeueUpload()
         {
+            if (!m_Internet.IsUp || !Connected)
+                return;
+
             if (!IsFull && !m_PendingUploads.IsEmpty)
             {
                 string pulled;
@@ -73,6 +76,9 @@
         /// </summary>
         public void FillBucket()
         {
+            if (!m_Internet.IsUp || !Connected)
+                return;
+
             while (!IsFull && !m_PendingUploads.IsEmpty)
                 DequeueUpload();
         }
