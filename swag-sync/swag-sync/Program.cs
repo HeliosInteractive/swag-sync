@@ -114,7 +114,7 @@
                                     b.Connect();
 
                                 if (b.Ready)
-                                    b.Sweep(db);
+                                    b.FillBucket();
                             }
                         });
 
