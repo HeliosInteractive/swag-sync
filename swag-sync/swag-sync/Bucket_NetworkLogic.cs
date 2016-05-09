@@ -84,7 +84,7 @@
         /// <param name="file">file to be uploaded</param>
         private async void Upload(string file)
         {
-            if (!Ready)
+            if (Disposed || !Validated)
                 return;
 
             if (m_CurrentUploads.ContainsKey(file))
@@ -93,9 +93,9 @@
                 return;
             }
 
-            if (!m_Internet.IsUp)
+            if (!m_Internet.IsUp || !Connected)
             {
-                Log.Warn("Internet seems to be down. Enqueuing {0}.", file);
+                Log.Warn("Connection seems to be down. Enqueuing back {0}.", file);
                 EnqueueUpload(file);
                 return;
             }
