@@ -108,8 +108,14 @@
 
                         internet.ConnectionRestored += () => buckets.ForEach(b =>
                         {
-                            if (b != null && b.Valid)
-                                b.DequeueUpload();
+                            if (b!= null)
+                            {
+                                if (!b.Disposed && b.Validated && !b.Connected)
+                                    b.Connect();
+
+                                if (b.Ready)
+                                    b.Sweep(db);
+                            }
                         });
 
                         if (opts.CleanEnabled)
