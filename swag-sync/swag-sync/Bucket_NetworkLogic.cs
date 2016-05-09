@@ -23,7 +23,7 @@
         /// </summary>
         public bool IsFull
         {
-            get { return m_CurrentUploads.Count > m_options.BucketMax; }
+            get { return m_CurrentUploads.Count >= m_options.BucketMax; }
         }
 
         /// <summary>
@@ -73,7 +73,7 @@
         /// </summary>
         public void FillBucket()
         {
-            while (!IsFull)
+            while (!IsFull && !m_PendingUploads.IsEmpty)
                 DequeueUpload();
         }
 
@@ -197,6 +197,9 @@
             }
         }
 
+        /// <summary>
+        /// Cancels ALL current upload requests "active" or "inactive"
+        /// </summary>
         public void CancelPendingTasks()
         {
             if (m_CurrentUploads.IsEmpty)
