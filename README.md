@@ -1,4 +1,4 @@
-# Reach Image Sync
+# Swag Sync
 
 Watches a directory and syncs the files with S3.
 
