@@ -125,7 +125,7 @@ s3.upload = function(file, done){
       };
 
       if( !status.uploaded ){
-        console.error('unable to upload file', err || res && res.statusCode, res && res.body);
+        console.error(`unable to upload file ${file}`, err || res && res.statusCode, res && res.body);
         // try this again in 10 seconds
         setTimeout(() => {s3.upload(file, done);}, 10000);
       }else{

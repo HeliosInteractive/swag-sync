@@ -1,5 +1,21 @@
 {
-  "name": "imagesync",
+  "name": "swag-sync",
+  "description": "Puts your filesystem swag on S3",
+  "version": "2.0.0",
+  "engines": {
+    "node": "5.9.x",
+    "npm": "3.7.3"
+  },
+  "homepage": "https://github.com/HeliosInteractive/swag-sync",
+  "author": "Michael Neil <michael.neil@heliosinteractive.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HeliosInteractive/swag-sync"
+  },
+  "scripts": {
+    "app": "node server/server.js"
+  },
   "dependencies": {
     "async": "^2.0.0-rc.4",
     "knox": "^0.9.2",

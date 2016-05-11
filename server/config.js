@@ -18,6 +18,6 @@ module.exports = {
   production:  {
     bucket_concurrency: process.env.CONCURRENCY || concurrency,
     watch: process.env.PATH,
-    timeout: process.env.TIMEOUT || timeout
+    timeout: Number(process.env.TIMEOUT || timeout)
   }
 };
