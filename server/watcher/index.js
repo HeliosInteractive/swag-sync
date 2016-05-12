@@ -19,6 +19,7 @@ var Watcher = function(config){
 
   var self = this;
   var watching = new Map();
+  var changed = new Map();
 
   const ignores = [
     /\.swp$/,
@@ -73,8 +74,15 @@ var Watcher = function(config){
         if( !stats.isFile() )
           return;
 
-        if( event === 'change')
-          self.emit('file.new', file);
+        if( event === 'change'){
+          var isChanging = changed.get(file);
+          if( isChanging ) clearTimeout(isChanging);
+          var changing = setTimeout(()=>{
+            self.emit('file.new', file);
+            changed.delete(file);
+          }, 100);
+          changed.set(file, changing);
+        }
       });
     });
 
