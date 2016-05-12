@@ -80,7 +80,7 @@ var Watcher = function(config){
           var changing = setTimeout(()=>{
             self.emit('file.new', file);
             changed.delete(file);
-          }, 100);
+          }, 300);
           changed.set(file, changing);
         }
       });
