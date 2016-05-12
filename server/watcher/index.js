@@ -34,6 +34,8 @@ var Watcher = function(config){
    * @returns {boolean}
    */
   function ingoreFile(filename){
+
+    if( !filename ) return true;
     var i = 0;
     for(; i < iterateIgnores; i++)
       if( ignores[i].test(filename) )
@@ -80,7 +82,7 @@ var Watcher = function(config){
           var changing = setTimeout(()=>{
             self.emit('file.new', file);
             changed.delete(file);
-          }, 300);
+          }, s3.config.change_delay);
           changed.set(file, changing);
         }
       });

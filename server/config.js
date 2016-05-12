@@ -10,7 +10,8 @@ module.exports = {
     timeout: timeout,
     aws_key: process.env.AWS_KEY,
     aws_secret: process.env.AWS_SECRET,
-    mongo_url: process.env.MONGO_URL || 'mongodb://127.0.0.1/imagesync'
+    mongo_url: process.env.MONGO_URL || 'mongodb://127.0.0.1/imagesync',
+    change_delay: Number(process.env.CHANGE_DELAY || 300)
   },
   development: {
     watch: path.resolve(__dirname, '../', 'images'),

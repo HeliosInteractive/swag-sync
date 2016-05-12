@@ -2,7 +2,7 @@
 
 Watches a directory and syncs the files with S3.
 
-#### Features
+### Features
 
  - First child nodes of the watched folder are considered buckets
  - Recursively watches the directory
@@ -11,16 +11,17 @@ Watches a directory and syncs the files with S3.
  - Sweeps the watched folder on start to fill the queue
  - Files already uploaded (or failed) or marked in mongo db with status, path, and reason for failure (if any)
 
-**Environment** settings
+### Environment Settings
 
- - NODE_ENV : production or development _defaults_ `development`
- - PORT : runs a server on a port so you can verify running status _defaults_ `5000`
- - AWS_KEY : Access key for aws bucket(s)
- - AWS_SECRET : Secret key for aws bucket(s)
- - MONGO_URL : Location of mongo db to store state in _defaults_ `mongodb://127.0.0.1/imagesync`
- - CONCURRENCY : Max parallel uploads per bucket _defaults_ `5`
- - PATH : Absolute path on file system to watch
- - TIMEOUT : How long to wait (in milliseconds) for a file to upload before it's considered failed  _defaults_ `60000`
+ - **AWS_KEY** : Access key for aws bucket(s)
+ - **AWS_SECRET** : Secret key for aws bucket(s)
+ - **CHANGE_DELAY** : Time to wait (milliseconds) between change events to send file created event _default_ `300`
+ - **CONCURRENCY** : Max parallel uploads per bucket _defaults_ `5`
+ - **MONGO_URL** : Location of mongo db to store state in _defaults_ `mongodb://127.0.0.1/imagesync`
+ - **NODE_ENV** : production or development _defaults_ `development`
+ - **PATH** : Absolute path on file system to watch
+ - **PORT** : runs a server on a port so you can verify running status _defaults_ `5000`
+ - **TIMEOUT** : How long to wait (milliseconds) for a file to upload before it's considered failed  _defaults_ `60000`
 
 > `TIMEOUT` forcebly closes the request socket. Requests are retried infinitely. Set to -1 for no timeout.
 
