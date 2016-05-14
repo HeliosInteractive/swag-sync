@@ -82,7 +82,7 @@ var Watcher = function(config){
           var changing = setTimeout(()=>{
             self.emit('file.new', file);
             changed.delete(file);
-          }, s3.config.change_delay);
+          }, config.change_delay);
           changed.set(file, changing);
         }
       });
